@@ -47,7 +47,10 @@ async def main():
     # Создаем и запускаем бота
     try:
         bot = TelegramBot(
-            token=config["telegram_token"], logger=logger, llm_client=llm_client
+            token=config["telegram_token"],
+            logger=logger,
+            llm_client=llm_client,
+            bot_name=config["bot_name"],
         )
         await bot.start()
     except KeyboardInterrupt:

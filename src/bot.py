@@ -11,7 +11,9 @@ from aiogram.types import Message
 class TelegramBot:
     """Telegram бот на базе aiogram."""
 
-    def __init__(self, token: str, logger: logging.Logger, llm_client=None):
+    def __init__(
+        self, token: str, logger: logging.Logger, llm_client=None, bot_name: str = "AI Assistant"
+    ):
         """
         Инициализация бота.
 
@@ -19,11 +21,13 @@ class TelegramBot:
             token: Telegram Bot API токен
             logger: Логгер для событий
             llm_client: Клиент для работы с LLM (опционально)
+            bot_name: Имя бота для отображения в сообщениях
         """
         self.logger = logger
         self.bot = Bot(token=token)
         self.dp = Dispatcher()
         self.llm_client = llm_client
+        self.bot_name = bot_name
 
         # Регистрируем обработчики
         self._register_handlers()
@@ -55,7 +59,7 @@ class TelegramBot:
 
         welcome_text = (
             f"👋 Привет, {username}!\n\n"
-            "Я AI-бот, который может общаться с тобой через LLM модели.\n\n"
+            f"Я {self.bot_name} — AI-бот, который может общаться с тобой через LLM модели.\n\n"
             "🎯 Мои возможности:\n"
             "• Общение на естественном языке\n"
             "• Запоминание контекста диалога\n"

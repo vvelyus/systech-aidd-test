@@ -39,6 +39,7 @@ class Config:
         config["openrouter_api_key"] = openrouter_api_key
 
         # Параметры с значениями по умолчанию
+        config["bot_name"] = os.getenv("BOT_NAME", "SysTech AI Assistant")
         config["openrouter_model"] = os.getenv("OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
         config["openrouter_base_url"] = os.getenv(
             "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
