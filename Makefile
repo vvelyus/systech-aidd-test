@@ -1,4 +1,4 @@
-.PHONY: install run lint format clean help
+.PHONY: install run lint format test clean help
 
 help:
 	@echo "Available commands:"
@@ -6,6 +6,7 @@ help:
 	@echo "  make run      - Run the bot"
 	@echo "  make lint     - Check code with ruff"
 	@echo "  make format   - Format code with ruff"
+	@echo "  make test     - Run tests with pytest"
 	@echo "  make clean    - Remove cache and temporary files"
 
 install:
@@ -19,6 +20,9 @@ lint:
 
 format:
 	uv run ruff format src/
+
+test:
+	uv run pytest tests/ -v --cov=src --cov-report=term-missing
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
