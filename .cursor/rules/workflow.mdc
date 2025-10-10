@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # Workflow - Процесс разработки
 
-> Инструкция для code assistant по разработке бота согласно [TASKLIST.md](TASKLIST.md) и [VISION.md](VISION.md)
+> Инструкция для code assistant по разработке бота согласно [TASKLIST.md](../../docs/TASKLIST.md) и [VISION.md](../../docs/VISION.md)
 
 ## 🎯 Главное правило
 
