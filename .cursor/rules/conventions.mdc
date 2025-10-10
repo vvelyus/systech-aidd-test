@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # Conventions - Правила разработки для Code Assistant
 
-> Полное техническое видение проекта см. в [VISION.md](../../docs/VISION.md)
+> Полное техническое видение проекта см. в @VISION.md
 
 ## Главные принципы
 
