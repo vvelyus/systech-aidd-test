@@ -11,22 +11,27 @@ from aiogram.types import Message
 class TelegramBot:
     """Telegram бот на базе aiogram."""
 
-    def __init__(self, token: str, logger: logging.Logger):
+    def __init__(self, token: str, logger: logging.Logger, llm_client=None):
         """
         Инициализация бота.
 
         Args:
             token: Telegram Bot API токен
             logger: Логгер для событий
+            llm_client: Клиент для работы с LLM (опционально)
         """
         self.logger = logger
         self.bot = Bot(token=token)
         self.dp = Dispatcher()
+        self.llm_client = llm_client
 
         # Регистрируем обработчики
         self._register_handlers()
 
-        self.logger.info("TelegramBot initialized")
+        if self.llm_client:
+            self.logger.info("TelegramBot initialized with LLM support")
+        else:
+            self.logger.info("TelegramBot initialized without LLM (echo mode)")
 
     def _register_handlers(self):
         """Регистрирует обработчики команд и сообщений."""
@@ -92,10 +97,10 @@ class TelegramBot:
 
     async def handle_message(self, message: Message):
         """
-        Обработчик текстовых сообщений (echo).
+        Обработчик текстовых сообщений.
 
-        Показывает индикатор печати и отправляет эхо-ответ.
-        В следующих итерациях здесь будет интеграция с LLM.
+        Показывает индикатор печати и отправляет ответ от LLM
+        или эхо-ответ, если LLM не настроен.
 
         Args:
             message: Входящее сообщение от пользователя
@@ -112,11 +117,25 @@ class TelegramBot:
         # Показываем индикатор "печатает..."
         await self.bot.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
 
-        # Echo - повторяем сообщение пользователя
-        response = f"Эхо: {text}"
+        try:
+            if self.llm_client:
+                # Получаем ответ от LLM
+                response = await self.llm_client.get_response(text)
+                self.logger.info(f"Sent LLM response to user_id={user_id}")
+            else:
+                # Fallback на echo если LLM не настроен
+                response = f"Эхо: {text}"
+                self.logger.info(f"Sent echo response to user_id={user_id}")
 
-        await message.answer(response)
-        self.logger.info(f"Sent echo response to user_id={user_id}")
+            await message.answer(response)
+
+        except Exception as e:
+            # Обработка ошибок с дружественным сообщением
+            self.logger.error(f"Error processing message: {e}", exc_info=True)
+            await message.answer(
+                "Извините, произошла ошибка при обработке вашего сообщения. "
+                "Попробуйте еще раз позже."
+            )
 
     async def start(self):
         """Запуск бота в режиме polling."""
