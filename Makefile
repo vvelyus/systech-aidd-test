@@ -26,7 +26,7 @@ format:
 	uv run ruff format src/
 
 type-check:
-	uv run mypy src/
+	uv run mypy -p src --config-file pyproject.toml
 
 test:
 	uv run pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=85

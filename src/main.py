@@ -3,10 +3,10 @@
 import asyncio
 import sys
 
-from bot import TelegramBot
-from config import Config, ConfigError
-from llm_client import LLMClient
-from logger import setup_logger
+from src.bot import TelegramBot
+from src.config import Config, ConfigError
+from src.llm_client import LLMClient
+from src.logger import setup_logger
 
 
 async def main() -> None:

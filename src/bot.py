@@ -1,6 +1,8 @@
 """Telegram бот на базе aiogram."""
 
 import logging
+from collections.abc import Awaitable, Callable
+from functools import wraps
 from typing import TYPE_CHECKING, Optional
 
 from aiogram import Bot, Dispatcher, F
@@ -8,8 +10,38 @@ from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from src.messages import BotMessages
+
 if TYPE_CHECKING:
-    from llm_client import LLMClient
+    from src.llm_client import LLMClient
+
+
+def log_command(
+    func: Callable[["TelegramBot", Message], Awaitable[None]],
+) -> Callable[["TelegramBot", Message], Awaitable[None]]:
+    """
+    Декоратор для логирования команд бота.
+
+    Автоматически логирует информацию о пользователе и команде
+    перед выполнением обработчика.
+
+    Args:
+        func: Асинхронная функция-обработчик команды
+
+    Returns:
+        Callable: Обёрнутая функция с логированием
+    """
+
+    @wraps(func)
+    async def wrapper(self: "TelegramBot", message: Message) -> None:
+        if message.from_user:
+            user_id = message.from_user.id
+            username = message.from_user.username or "unknown"
+            command = message.text or func.__name__
+            self.logger.info(f"Command {command} from user_id={user_id}, username={username}")
+        await func(self, message)
+
+    return wrapper
 
 
 class TelegramBot:
@@ -53,6 +85,7 @@ class TelegramBot:
         self.dp.message.register(self.cmd_reset, Command("reset"))
         self.dp.message.register(self.handle_message, F.text)
 
+    @log_command
     async def cmd_start(self, message: Message) -> None:
         """
         Обработчик команды /start.
@@ -62,24 +95,10 @@ class TelegramBot:
         """
         if not message.from_user:
             return
-        user_id = message.from_user.id
         username = message.from_user.username or "user"
+        await message.answer(BotMessages.welcome(username, self.bot_name))
 
-        self.logger.info(f"Command /start from user_id={user_id}, username={username}")
-
-        welcome_text = (
-            f"👋 Привет, {username}!\n\n"
-            f"Я {self.bot_name} — AI-бот, который может общаться с тобой через LLM модели.\n\n"
-            "🎯 Мои возможности:\n"
-            "• Общение на естественном языке\n"
-            "• Запоминание контекста диалога\n"
-            "• Помощь с вопросами и задачами\n\n"
-            "💬 Просто напиши мне что-нибудь, и я постараюсь помочь!\n\n"
-            "Используй /help чтобы увидеть доступные команды."
-        )
-
-        await message.answer(welcome_text)
-
+    @log_command
     async def cmd_help(self, message: Message) -> None:
         """
         Обработчик команды /help.
@@ -89,24 +108,9 @@ class TelegramBot:
         """
         if not message.from_user:
             return
-        user_id = message.from_user.id
-        self.logger.info(f"Command /help from user_id={user_id}")
+        await message.answer(BotMessages.help_text())
 
-        help_text = (
-            "📚 Доступные команды:\n\n"
-            "/start - Начать работу с ботом\n"
-            "/help - Показать это сообщение\n"
-            "/status - Проверить работоспособность\n"
-            "/reset - Очистить контекст диалога\n\n"
-            "💡 Как пользоваться:\n"
-            "Просто напиши мне любое сообщение, и я отвечу! "
-            "Я запоминаю контекст нашего разговора (последние 20 сообщений), "
-            "поэтому можешь задавать уточняющие вопросы.\n\n"
-            "🔄 Если хочешь начать диалог заново, используй /reset"
-        )
-
-        await message.answer(help_text)
-
+    @log_command
     async def cmd_status(self, message: Message) -> None:
         """
         Обработчик команды /status.
@@ -116,13 +120,9 @@ class TelegramBot:
         """
         if not message.from_user:
             return
-        user_id = message.from_user.id
-        self.logger.info(f"Command /status from user_id={user_id}")
+        await message.answer(BotMessages.status())
 
-        status_text = "✅ Бот работает!\n\nВсе системы функционируют в штатном режиме."
-
-        await message.answer(status_text)
-
+    @log_command
     async def cmd_reset(self, message: Message) -> None:
         """
         Обработчик команды /reset.
@@ -135,13 +135,12 @@ class TelegramBot:
         if not message.from_user:
             return
         user_id = message.from_user.id
-        self.logger.info(f"Command /reset from user_id={user_id}")
 
         if self.llm_client:
             self.llm_client.reset_context(user_id)
-            await message.answer("✅ Контекст диалога очищен. Начинаем с чистого листа!")
+            await message.answer(BotMessages.context_reset_success())
         else:
-            await message.answer("⚠️ LLM не подключен, контекст не используется.")
+            await message.answer(BotMessages.llm_not_connected())
 
     async def handle_message(self, message: Message) -> None:
         """
@@ -161,16 +160,13 @@ class TelegramBot:
 
         # Edge case: пустое или очень короткое сообщение
         if text_length < 1:
-            await message.answer("Пожалуйста, напишите сообщение с текстом.")
+            await message.answer(BotMessages.empty_message())
             return
 
         # Edge case: очень длинное сообщение (больше 4000 символов)
         if text_length > 4000:
             self.logger.warning(f"Message too long from user_id={user_id}, length={text_length}")
-            await message.answer(
-                "Ваше сообщение слишком длинное (больше 4000 символов). "
-                "Пожалуйста, сократите его и попробуйте еще раз."
-            )
+            await message.answer(BotMessages.message_too_long())
             return
 
         text_preview = text[:200]
@@ -191,7 +187,7 @@ class TelegramBot:
                 self.logger.info(f"Sent LLM response to user_id={user_id}")
             else:
                 # Fallback на echo если LLM не настроен
-                response = f"Эхо: {text}"
+                response = BotMessages.echo(text)
                 self.logger.info(f"Sent echo response to user_id={user_id}")
 
             await message.answer(response)
@@ -199,10 +195,7 @@ class TelegramBot:
         except Exception as e:
             # Обработка ошибок с дружественным сообщением
             self.logger.error(f"Error processing message: {e}", exc_info=True)
-            await message.answer(
-                "Извините, произошла ошибка при обработке вашего сообщения. "
-                "Попробуйте еще раз позже."
-            )
+            await message.answer(BotMessages.processing_error())
 
     async def start(self) -> None:
         """Запуск бота в режиме polling."""
