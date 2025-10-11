@@ -1,0 +1,357 @@
+# QA Conventions - Test Development Rules
+
+> Rules for test development following TDD approach. Focus on essential functionality testing only.
+
+## Core Principles
+
+### Test-Driven Development (TDD)
+- **Red → Green → Refactor** cycle
+- Write failing test first
+- Implement minimal code to pass
+- Refactor with safety net
+
+### KISS for Tests
+- Test ONE thing per test
+- Straightforward assertions
+- No clever abstractions
+- Self-explanatory test names
+
+### DRY in Tests
+- Common setup → fixtures (conftest.py)
+- Repeated patterns → helper functions
+- BUT: Prefer duplication over unclear abstraction
+
+### No Boilerplate Tests
+- ❌ Testing getters/setters
+- ❌ Testing framework behavior
+- ❌ Testing trivial code
+- ✅ Testing business logic
+- ✅ Testing error handling
+- ✅ Testing edge cases
+
+---
+
+## What to Test
+
+### Essential Only
+**Test:**
+- Public API methods
+- Error handling paths
+- Business logic
+- Critical edge cases
+- Integration points
+
+**Skip:**
+- Private methods (test through public API)
+- Framework code
+- Simple property access
+- Trivial validations
+- Infrastructure setup
+
+### Coverage Philosophy
+- **Target: 85%+** overall
+- **Focus on critical paths** not 100%
+- **No vanity metrics** - meaningful tests only
+
+---
+
+## Test Structure
+
+### Naming Convention
+```python
+def test_<method>_<scenario>():
+    """Test <method> <expected_behavior> when <condition>."""
+```
+
+### AAA Pattern (Arrange-Act-Assert)
+```python
+def test_method_success_case():
+    """Test method returns expected value on success."""
+    # Arrange
+    input_data = setup_test_data()
+
+    # Act
+    result = method(input_data)
+
+    # Assert
+    assert result == expected_value
+```
+
+### Async Tests
+```python
+@pytest.mark.asyncio
+async def test_async_method():
+    """Test async method behavior."""
+    result = await async_method()
+    assert result is not None
+```
+
+---
+
+## Fixtures (conftest.py)
+
+### Rules
+- One fixture = one responsibility
+- Descriptive names (`mock_llm_client` not `client`)
+- Real objects for unit tests when possible
+- Mocks for external dependencies only
+
+### Scope
+- Default: function-level
+- Use session/module only if expensive setup
+- Avoid stateful fixtures
+
+### Example
+```python
+@pytest.fixture
+def real_storage(mock_logger):
+    """Create real storage instance."""
+    return InMemoryContextStorage(max_messages=20, logger=mock_logger)
+
+@pytest.fixture
+def mock_api_client():
+    """Mock external API client."""
+    client = MagicMock()
+    client.call_api = AsyncMock(return_value={"status": "ok"})
+    return client
+```
+
+---
+
+## Mocking Strategy
+
+### When to Mock
+- External APIs
+- I/O operations (network, filesystem)
+- Time-dependent code
+- Expensive computations
+
+### When NOT to Mock
+- Internal business logic
+- Data structures
+- Simple helpers
+- Already fast code
+
+### Mock Rules
+```python
+# ✅ Good: Mock external dependency
+with patch("module.ExternalAPI") as mock_api:
+    mock_api.return_value.get.return_value = test_data
+
+# ❌ Bad: Over-mocking internal logic
+with patch("module.internal_helper"):  # Test real code instead
+```
+
+---
+
+## Assertions
+
+### Be Specific
+```python
+# ✅ Good
+assert result == "expected value"
+assert len(items) == 3
+assert "error" in response.lower()
+
+# ❌ Bad
+assert result  # What are we checking?
+assert items   # Empty list is falsy!
+```
+
+### One Logical Assertion Per Test
+```python
+# ✅ Good
+def test_returns_correct_value():
+    assert calculate(2, 3) == 5
+
+def test_raises_on_zero():
+    with pytest.raises(ZeroDivisionError):
+        calculate(1, 0)
+
+# ❌ Bad: Multiple unrelated checks
+def test_everything():
+    assert calculate(2, 3) == 5
+    assert calculate(0, 0) == 0
+    with pytest.raises(ZeroDivisionError):
+        calculate(1, 0)
+```
+
+---
+
+## Error Testing
+
+### Test Error Paths
+```python
+@pytest.mark.asyncio
+async def test_handles_api_error():
+    """Test graceful handling of API errors."""
+    mock_client.call_api.side_effect = APIError("Connection failed")
+
+    result = await service.fetch_data()
+
+    assert result is None  # or appropriate fallback
+    mock_logger.error.assert_called()
+```
+
+### Test Exceptions
+```python
+def test_validates_input():
+    """Test raises ValueError on invalid input."""
+    with pytest.raises(ValueError, match="must be positive"):
+        process(-1)
+```
+
+---
+
+## Test Categories
+
+### Unit Tests (Primary)
+- Test single unit in isolation
+- Fast execution (<100ms each)
+- No external dependencies
+- Majority of test suite
+
+### Integration Tests (Selective)
+```python
+@pytest.mark.integration
+async def test_full_flow():
+    """Test complete user scenario end-to-end."""
+    # Real components working together
+```
+Run: `pytest -m integration`
+Skip: `pytest -m "not integration"`
+
+---
+
+## TDD Workflow
+
+### Cycle
+```
+1. Write failing test
+   ↓
+2. make test (RED)
+   ↓
+3. Implement minimal code
+   ↓
+4. make test (GREEN)
+   ↓
+5. Refactor if needed
+   ↓
+6. make test (still GREEN)
+   ↓
+7. Next test
+```
+
+### Commands
+- `make test` - run tests
+- `make test-cov` - with coverage
+- `make ci` - full quality check
+
+---
+
+## Anti-Patterns
+
+### Avoid
+
+❌ **Testing implementation details**
+```python
+# Bad: Testing private method
+def test_private_method():
+    obj._internal_helper()  # DON'T
+```
+
+❌ **Brittle tests**
+```python
+# Bad: Depends on exact string
+assert str(obj) == "Object(id=1, name='test', created=2024-01-01)"
+# Good: Check relevant parts
+assert "id=1" in str(obj)
+```
+
+❌ **Test interdependence**
+```python
+# Bad: Tests depend on each other
+test_order_matters = []  # DON'T SHARE STATE
+```
+
+❌ **Unclear test names**
+```python
+def test_1():  # What does this test?
+def test_edge_case():  # Which edge case?
+```
+
+❌ **Testing trivia**
+```python
+def test_property_getter():
+    assert obj.name == "test"  # Waste of time
+```
+
+---
+
+## Checklist Before Writing Test
+
+- [ ] Does this test real business logic?
+- [ ] Would a bug break this test?
+- [ ] Is the test name self-documenting?
+- [ ] Are assertions specific?
+- [ ] No testing framework behavior?
+- [ ] No mocking internal logic?
+- [ ] Fast execution (<100ms)?
+
+---
+
+## Quality Gates
+
+### All Tests Must
+- Pass `make ci` completely
+- Execute in <100ms (unit tests)
+- Have meaningful names
+- Test one scenario
+- Use appropriate fixtures
+- Have clear assertions
+
+### Before Commit
+- [ ] `make test` - all pass
+- [ ] `make test-cov` - coverage ≥85%
+- [ ] `make lint` - no errors
+- [ ] `make type-check` - no errors
+
+---
+
+## Examples from Project
+
+### Good Test (test_bot.py)
+```python
+@pytest.mark.asyncio
+async def test_handle_empty_message(bot, mock_message):
+    """Test handling empty message."""
+    mock_message.text = ""
+
+    with patch.object(bot.bot, "send_chat_action", new=AsyncMock()):
+        await bot.handle_message(mock_message)
+
+    mock_message.answer.assert_called_once()
+    call_args = mock_message.answer.call_args[0][0]
+    assert "Пожалуйста, напишите сообщение" in call_args
+```
+✅ Tests one edge case
+✅ Clear name and docstring
+✅ Specific assertion
+✅ Uses fixture from conftest
+
+### What NOT to Test
+```python
+# ❌ Don't write these
+def test_getter():
+    assert obj.name == "test"  # Trivial
+
+def test_aiogram_framework():
+    # Testing library behavior - DON'T
+
+def test_private_implementation():
+    obj._internal_method()  # Test through public API instead
+```
+
+---
+
+> **Remember:** Quality over quantity. Few meaningful tests beat many meaningless ones. TDD!
