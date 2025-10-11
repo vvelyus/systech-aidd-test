@@ -5,6 +5,7 @@ import sys
 
 from src.bot import TelegramBot
 from src.config import Config, ConfigError
+from src.context_storage import InMemoryContextStorage
 from src.llm_client import LLMClient
 from src.logger import setup_logger
 
@@ -25,6 +26,13 @@ async def main() -> None:
     logger.info("Starting systech-aidd-test application")
     logger.info("=" * 50)
 
+    # Создаем хранилище контекста
+    context_storage = InMemoryContextStorage(
+        max_messages=config.max_context_messages,
+        max_users=1000,
+        logger=logger,
+    )
+
     # Создаем LLM клиент
     try:
         llm_client = LLMClient(
@@ -33,6 +41,7 @@ async def main() -> None:
             base_url=config.openrouter_base_url,
             system_prompt=config.system_prompt,
             logger=logger,
+            context_storage=context_storage,
         )
         logger.info("LLM client initialized successfully")
     except Exception as e:

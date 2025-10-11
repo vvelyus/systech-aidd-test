@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram.types import Message, User
 
+from src.context_storage import InMemoryContextStorage
 from src.llm_client import LLMClient
 
 
@@ -13,6 +14,12 @@ from src.llm_client import LLMClient
 def mock_logger():
     """Create a mock logger for testing."""
     return MagicMock(spec=logging.Logger)
+
+
+@pytest.fixture
+def context_storage(mock_logger):
+    """Create a real InMemoryContextStorage instance."""
+    return InMemoryContextStorage(max_messages=20, max_users=1000, logger=mock_logger)
 
 
 @pytest.fixture
@@ -25,7 +32,7 @@ def mock_llm_client():
 
 
 @pytest.fixture
-def llm_client(mock_logger):
+def llm_client(mock_logger, context_storage):
     """Create a real LLMClient instance with mocked AsyncOpenAI."""
     with patch("src.llm_client.AsyncOpenAI"):
         return LLMClient(
@@ -34,6 +41,7 @@ def llm_client(mock_logger):
             base_url="https://test.api",
             system_prompt="Test system prompt",
             logger=mock_logger,
+            context_storage=context_storage,
         )
 
 

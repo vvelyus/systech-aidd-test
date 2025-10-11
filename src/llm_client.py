@@ -4,11 +4,16 @@ import logging
 
 from openai import AsyncOpenAI
 
+from src.context_storage import ContextStorage
+
 
 class LLMClient:
-    """Клиент для работы с LLM через OpenRouter API."""
+    """
+    Клиент для работы с LLM через OpenRouter API.
 
-    MAX_CONTEXT_MESSAGES = 20
+    Использует pluggable ContextStorage для хранения истории диалогов,
+    что позволяет легко заменить реализацию хранилища (например, на Redis).
+    """
 
     def __init__(
         self,
@@ -17,6 +22,7 @@ class LLMClient:
         base_url: str,
         system_prompt: str,
         logger: logging.Logger,
+        context_storage: ContextStorage,
     ) -> None:
         """
         Инициализация клиента.
@@ -27,12 +33,13 @@ class LLMClient:
             base_url: Base URL для OpenRouter API
             system_prompt: Системный промпт
             logger: Логгер для событий
+            context_storage: Хранилище контекста диалогов
         """
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self.model = model
         self.system_prompt = system_prompt
         self.logger = logger
-        self.history: dict[int, list[dict[str, str]]] = {}
+        self.context_storage = context_storage
 
         self.logger.info(f"LLMClient initialized with model: {model}")
 
@@ -101,10 +108,10 @@ class LLMClient:
         """
         try:
             # Добавляем сообщение пользователя в контекст
-            self._add_to_context(user_id, "user", user_message)
+            self.context_storage.add_message(user_id, "user", user_message)
 
             # Получаем историю для пользователя
-            context = self._get_context(user_id)
+            context = self.context_storage.get_context(user_id)
 
             # Формируем запрос с системным промптом и историей
             messages = [
@@ -127,7 +134,7 @@ class LLMClient:
             answer = response.choices[0].message.content
             if not answer:
                 raise ValueError("Empty response from LLM")
-            self._add_to_context(user_id, "assistant", answer)
+            self.context_storage.add_message(user_id, "assistant", answer)
 
             self.logger.info(f"Received response from LLM: user_id={user_id}, length={len(answer)}")
 
@@ -147,44 +154,4 @@ class LLMClient:
         Args:
             user_id: ID пользователя
         """
-        if user_id in self.history:
-            del self.history[user_id]
-            self.logger.info(f"Context reset for user_id={user_id}")
-        else:
-            self.logger.info(f"No context to reset for user_id={user_id}")
-
-    def _add_to_context(self, user_id: int, role: str, content: str) -> None:
-        """
-        Добавить сообщение в контекст с ограничением.
-
-        Если количество сообщений превышает MAX_CONTEXT_MESSAGES,
-        оставляет только последние MAX_CONTEXT_MESSAGES.
-
-        Args:
-            user_id: ID пользователя
-            role: Роль отправителя (user или assistant)
-            content: Текст сообщения
-        """
-        if user_id not in self.history:
-            self.history[user_id] = []
-
-        self.history[user_id].append({"role": role, "content": content})
-
-        # Ограничение: последние MAX_CONTEXT_MESSAGES сообщений
-        if len(self.history[user_id]) > self.MAX_CONTEXT_MESSAGES:
-            self.history[user_id] = self.history[user_id][-self.MAX_CONTEXT_MESSAGES :]
-            self.logger.debug(
-                f"Context trimmed to {self.MAX_CONTEXT_MESSAGES} messages for user_id={user_id}"
-            )
-
-    def _get_context(self, user_id: int) -> list[dict[str, str]]:
-        """
-        Получить контекст для пользователя.
-
-        Args:
-            user_id: ID пользователя
-
-        Returns:
-            list: Список сообщений в формате [{"role": ..., "content": ...}, ...]
-        """
-        return self.history.get(user_id, [])
+        self.context_storage.reset_context(user_id)

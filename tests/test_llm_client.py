@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_get_response_with_context_first_message(llm_client, mock_logger):
+async def test_get_response_with_context_first_message(llm_client, context_storage, mock_logger):
     """Test getting response with context for first message."""
     # Mock the API call
     mock_response = MagicMock()
@@ -21,13 +21,13 @@ async def test_get_response_with_context_first_message(llm_client, mock_logger):
     response = await llm_client.get_response_with_context(user_id, user_message)
 
     assert response == "Test response"
-    assert user_id in llm_client.history
-    assert len(llm_client.history[user_id]) == 2  # user message + assistant response
+    context = context_storage.get_context(user_id)
+    assert len(context) == 2  # user message + assistant response
     mock_logger.info.assert_called()
 
 
 @pytest.mark.asyncio
-async def test_get_response_with_context_maintains_history(llm_client):
+async def test_get_response_with_context_maintains_history(llm_client, context_storage):
     """Test that context is maintained across multiple messages."""
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
@@ -43,11 +43,12 @@ async def test_get_response_with_context_maintains_history(llm_client):
     await llm_client.get_response_with_context(user_id, "Message 3")
 
     # Should have 6 messages: 3 user + 3 assistant
-    assert len(llm_client.history[user_id]) == 6
+    context = context_storage.get_context(user_id)
+    assert len(context) == 6
 
 
 @pytest.mark.asyncio
-async def test_get_response_with_context_limits_history(llm_client):
+async def test_get_response_with_context_limits_history(llm_client, context_storage):
     """Test that context history is limited to MAX_CONTEXT_MESSAGES."""
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
@@ -62,68 +63,33 @@ async def test_get_response_with_context_limits_history(llm_client):
         await llm_client.get_response_with_context(user_id, f"Message {i}")
 
     # History should be limited to 20
-    assert len(llm_client.history[user_id]) <= 20
+    context = context_storage.get_context(user_id)
+    assert len(context) <= 20
 
 
-def test_reset_context(llm_client, mock_logger):
+def test_reset_context(llm_client, context_storage, mock_logger):
     """Test resetting user context."""
     user_id = 12345
 
     # Add some context
-    llm_client.history[user_id] = [{"role": "user", "content": "test"}]
+    context_storage.add_message(user_id, "user", "test")
 
     # Reset context
     llm_client.reset_context(user_id)
 
-    assert user_id not in llm_client.history
+    context = context_storage.get_context(user_id)
+    assert context == []
     mock_logger.info.assert_called_with(f"Context reset for user_id={user_id}")
 
 
-def test_reset_context_for_nonexistent_user(llm_client, mock_logger):
+def test_reset_context_for_nonexistent_user(llm_client, context_storage, mock_logger):
     """Test resetting context for user with no history."""
     user_id = 99999
 
     # Should not raise error
     llm_client.reset_context(user_id)
 
-    assert user_id not in llm_client.history
-
-
-def test_add_to_context(llm_client):
-    """Test adding messages to context."""
-    user_id = 12345
-
-    llm_client._add_to_context(user_id, "user", "Test message")
-
-    assert user_id in llm_client.history
-    assert len(llm_client.history[user_id]) == 1
-    assert llm_client.history[user_id][0]["role"] == "user"
-    assert llm_client.history[user_id][0]["content"] == "Test message"
-
-
-def test_get_context(llm_client):
-    """Test getting context for user."""
-    user_id = 12345
-
-    # Add some context
-    llm_client.history[user_id] = [
-        {"role": "user", "content": "Hello"},
-        {"role": "assistant", "content": "Hi there"},
-    ]
-
-    context = llm_client._get_context(user_id)
-
-    assert len(context) == 2
-    assert context[0]["role"] == "user"
-    assert context[1]["role"] == "assistant"
-
-
-def test_get_context_for_new_user(llm_client):
-    """Test getting context for user with no history."""
-    user_id = 99999
-
-    context = llm_client._get_context(user_id)
-
+    context = context_storage.get_context(user_id)
     assert context == []
 
 
