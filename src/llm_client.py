@@ -17,7 +17,7 @@ class LLMClient:
         base_url: str,
         system_prompt: str,
         logger: logging.Logger,
-    ):
+    ) -> None:
         """
         Инициализация клиента.
 
@@ -32,7 +32,7 @@ class LLMClient:
         self.model = model
         self.system_prompt = system_prompt
         self.logger = logger
-        self.history: dict[int, list] = {}
+        self.history: dict[int, list[dict[str, str]]] = {}
 
         self.logger.info(f"LLMClient initialized with model: {model}")
 
@@ -60,17 +60,19 @@ class LLMClient:
             ]
 
             self.logger.info(
-                f"Sending request to LLM: model={self.model}, "
-                f"message_length={len(user_message)}"
+                f"Sending request to LLM: model={self.model}, message_length={len(user_message)}"
             )
 
             # Вызов API
             response = await self.client.chat.completions.create(
-                model=self.model, messages=messages
+                model=self.model,
+                messages=messages,  # type: ignore[arg-type]
             )
 
             # Извлекаем ответ
             answer = response.choices[0].message.content
+            if not answer:
+                raise ValueError("Empty response from LLM")
             self.logger.info(f"Received response from LLM: length={len(answer)}")
 
             return answer
@@ -79,9 +81,7 @@ class LLMClient:
             self.logger.error(f"Error calling LLM API: {e}", exc_info=True)
             raise
 
-    async def get_response_with_context(
-        self, user_id: int, user_message: str
-    ) -> str:
+    async def get_response_with_context(self, user_id: int, user_message: str) -> str:
         """
         Получить ответ от LLM с учетом контекста диалога.
 
@@ -119,16 +119,17 @@ class LLMClient:
 
             # Вызов API
             response = await self.client.chat.completions.create(
-                model=self.model, messages=messages
+                model=self.model,
+                messages=messages,  # type: ignore[arg-type]
             )
 
             # Извлекаем и сохраняем ответ в контекст
             answer = response.choices[0].message.content
+            if not answer:
+                raise ValueError("Empty response from LLM")
             self._add_to_context(user_id, "assistant", answer)
 
-            self.logger.info(
-                f"Received response from LLM: user_id={user_id}, length={len(answer)}"
-            )
+            self.logger.info(f"Received response from LLM: user_id={user_id}, length={len(answer)}")
 
             return answer
 
@@ -171,15 +172,12 @@ class LLMClient:
 
         # Ограничение: последние MAX_CONTEXT_MESSAGES сообщений
         if len(self.history[user_id]) > self.MAX_CONTEXT_MESSAGES:
-            self.history[user_id] = self.history[user_id][
-                -self.MAX_CONTEXT_MESSAGES :
-            ]
+            self.history[user_id] = self.history[user_id][-self.MAX_CONTEXT_MESSAGES :]
             self.logger.debug(
-                f"Context trimmed to {self.MAX_CONTEXT_MESSAGES} messages "
-                f"for user_id={user_id}"
+                f"Context trimmed to {self.MAX_CONTEXT_MESSAGES} messages for user_id={user_id}"
             )
 
-    def _get_context(self, user_id: int) -> list:
+    def _get_context(self, user_id: int) -> list[dict[str, str]]:
         """
         Получить контекст для пользователя.
 
@@ -190,4 +188,3 @@ class LLMClient:
             list: Список сообщений в формате [{"role": ..., "content": ...}, ...]
         """
         return self.history.get(user_id, [])
-

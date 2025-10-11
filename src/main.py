@@ -9,7 +9,7 @@ from llm_client import LLMClient
 from logger import setup_logger
 
 
-async def main():
+async def main() -> None:
     """Точка входа приложения."""
     # Загружаем конфигурацию
     config = Config.load()
@@ -40,9 +40,7 @@ async def main():
             logger.error(f"Failed to initialize LLMClient: {e}", exc_info=True)
             logger.warning("Bot will run in echo mode without LLM")
     else:
-        logger.warning(
-            "OPENROUTER_API_KEY is not set. Bot will run in echo mode without LLM"
-        )
+        logger.warning("OPENROUTER_API_KEY is not set. Bot will run in echo mode without LLM")
 
     # Создаем и запускаем бота
     try:

@@ -1,19 +1,27 @@
 """Telegram бот на базе aiogram."""
 
 import logging
+from typing import TYPE_CHECKING, Optional
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import Message
 
+if TYPE_CHECKING:
+    from llm_client import LLMClient
+
 
 class TelegramBot:
     """Telegram бот на базе aiogram."""
 
     def __init__(
-        self, token: str, logger: logging.Logger, llm_client=None, bot_name: str = "AI Assistant"
-    ):
+        self,
+        token: str,
+        logger: logging.Logger,
+        llm_client: Optional["LLMClient"] = None,
+        bot_name: str = "AI Assistant",
+    ) -> None:
         """
         Инициализация бота.
 
@@ -37,7 +45,7 @@ class TelegramBot:
         else:
             self.logger.info("TelegramBot initialized without LLM (echo mode)")
 
-    def _register_handlers(self):
+    def _register_handlers(self) -> None:
         """Регистрирует обработчики команд и сообщений."""
         self.dp.message.register(self.cmd_start, Command("start"))
         self.dp.message.register(self.cmd_help, Command("help"))
@@ -45,13 +53,15 @@ class TelegramBot:
         self.dp.message.register(self.cmd_reset, Command("reset"))
         self.dp.message.register(self.handle_message, F.text)
 
-    async def cmd_start(self, message: Message):
+    async def cmd_start(self, message: Message) -> None:
         """
         Обработчик команды /start.
 
         Args:
             message: Входящее сообщение от пользователя
         """
+        if not message.from_user:
+            return
         user_id = message.from_user.id
         username = message.from_user.username or "user"
 
@@ -70,13 +80,15 @@ class TelegramBot:
 
         await message.answer(welcome_text)
 
-    async def cmd_help(self, message: Message):
+    async def cmd_help(self, message: Message) -> None:
         """
         Обработчик команды /help.
 
         Args:
             message: Входящее сообщение от пользователя
         """
+        if not message.from_user:
+            return
         user_id = message.from_user.id
         self.logger.info(f"Command /help from user_id={user_id}")
 
@@ -95,13 +107,15 @@ class TelegramBot:
 
         await message.answer(help_text)
 
-    async def cmd_status(self, message: Message):
+    async def cmd_status(self, message: Message) -> None:
         """
         Обработчик команды /status.
 
         Args:
             message: Входящее сообщение от пользователя
         """
+        if not message.from_user:
+            return
         user_id = message.from_user.id
         self.logger.info(f"Command /status from user_id={user_id}")
 
@@ -109,7 +123,7 @@ class TelegramBot:
 
         await message.answer(status_text)
 
-    async def cmd_reset(self, message: Message):
+    async def cmd_reset(self, message: Message) -> None:
         """
         Обработчик команды /reset.
 
@@ -118,6 +132,8 @@ class TelegramBot:
         Args:
             message: Входящее сообщение от пользователя
         """
+        if not message.from_user:
+            return
         user_id = message.from_user.id
         self.logger.info(f"Command /reset from user_id={user_id}")
 
@@ -127,7 +143,7 @@ class TelegramBot:
         else:
             await message.answer("⚠️ LLM не подключен, контекст не используется.")
 
-    async def handle_message(self, message: Message):
+    async def handle_message(self, message: Message) -> None:
         """
         Обработчик текстовых сообщений.
 
@@ -137,6 +153,8 @@ class TelegramBot:
         Args:
             message: Входящее сообщение от пользователя
         """
+        if not message.from_user:
+            return
         user_id = message.from_user.id
         text = message.text or ""
         text_length = len(text)
@@ -148,9 +166,7 @@ class TelegramBot:
 
         # Edge case: очень длинное сообщение (больше 4000 символов)
         if text_length > 4000:
-            self.logger.warning(
-                f"Message too long from user_id={user_id}, length={text_length}"
-            )
+            self.logger.warning(f"Message too long from user_id={user_id}, length={text_length}")
             await message.answer(
                 "Ваше сообщение слишком длинное (больше 4000 символов). "
                 "Пожалуйста, сократите его и попробуйте еще раз."
@@ -188,7 +204,7 @@ class TelegramBot:
                 "Попробуйте еще раз позже."
             )
 
-    async def start(self):
+    async def start(self) -> None:
         """Запуск бота в режиме polling."""
         self.logger.info("Starting bot in polling mode...")
         try:

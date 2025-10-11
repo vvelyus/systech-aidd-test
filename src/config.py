@@ -2,6 +2,7 @@
 
 import os
 import warnings
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -10,7 +11,7 @@ class Config:
     """Управление конфигурацией приложения из .env файла."""
 
     @staticmethod
-    def load() -> dict:
+    def load() -> dict[str, Any]:
         """
         Загружает конфигурацию из .env файла.
 
@@ -25,17 +26,17 @@ class Config:
         # Загружаем .env файл
         load_dotenv()
 
-        config = {}
+        config: dict[str, Any] = {}
 
         # Обязательные параметры
         telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
         if not telegram_token:
-            warnings.warn("TELEGRAM_BOT_TOKEN не найден в .env файле!")
+            warnings.warn("TELEGRAM_BOT_TOKEN не найден в .env файле!", stacklevel=2)
         config["telegram_token"] = telegram_token
 
         openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         if not openrouter_api_key:
-            warnings.warn("OPENROUTER_API_KEY не найден в .env файле!")
+            warnings.warn("OPENROUTER_API_KEY не найден в .env файле!", stacklevel=2)
         config["openrouter_api_key"] = openrouter_api_key
 
         # Параметры с значениями по умолчанию
@@ -47,7 +48,7 @@ class Config:
         config["system_prompt"] = os.getenv(
             "SYSTEM_PROMPT", "Ты - полезный AI-ассистент. Отвечай кратко и по делу."
         )
-        config["max_context_messages"] = int(os.getenv("MAX_CONTEXT_MESSAGES", "20"))
+        config["max_context_messages"] = int(os.getenv("MAX_CONTEXT_MESSAGES") or "20")
         config["log_file_path"] = os.getenv("LOG_FILE_PATH", "logs/bot.log")
         config["log_level"] = os.getenv("LOG_LEVEL", "INFO")
 
