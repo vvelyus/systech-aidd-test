@@ -51,6 +51,7 @@ class TelegramBot:
         self,
         token: str,
         logger: logging.Logger,
+        system_prompt: str = "Ты - AI-ассистент.",
         llm_client: Optional["LLMClient"] = None,
         bot_name: str = "AI Assistant",
     ) -> None:
@@ -60,12 +61,14 @@ class TelegramBot:
         Args:
             token: Telegram Bot API токен
             logger: Логгер для событий
+            system_prompt: Системный промпт для отображения роли
             llm_client: Клиент для работы с LLM (опционально)
             bot_name: Имя бота для отображения в сообщениях
         """
         self.logger = logger
         self.bot = Bot(token=token)
         self.dp = Dispatcher()
+        self.system_prompt = system_prompt
         self.llm_client = llm_client
         self.bot_name = bot_name
 
@@ -83,6 +86,7 @@ class TelegramBot:
         self.dp.message.register(self.cmd_help, Command("help"))
         self.dp.message.register(self.cmd_status, Command("status"))
         self.dp.message.register(self.cmd_reset, Command("reset"))
+        self.dp.message.register(self.cmd_role, Command("role"))
         self.dp.message.register(self.handle_message, F.text)
 
     @log_command
@@ -141,6 +145,20 @@ class TelegramBot:
             await message.answer(BotMessages.context_reset_success())
         else:
             await message.answer(BotMessages.llm_not_connected())
+
+    @log_command
+    async def cmd_role(self, message: Message) -> None:
+        """
+        Обработчик команды /role.
+
+        Отображает роль и функции бота на основе системного промпта.
+
+        Args:
+            message: Входящее сообщение от пользователя
+        """
+        if not message.from_user:
+            return
+        await message.answer(BotMessages.role(self.system_prompt))
 
     async def handle_message(self, message: Message) -> None:
         """

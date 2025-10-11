@@ -1,5 +1,7 @@
 """Tests for Config module."""
 
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -101,3 +103,98 @@ def test_config_immutability(monkeypatch):
         with pytest.raises(Exception):  # dataclasses.FrozenInstanceError
             config.telegram_token = "new_token"  # type: ignore[misc]
 
+
+# Tests for Config.load_system_prompt()
+
+
+def test_config_load_system_prompt_success(monkeypatch):
+    """Test successful loading of system prompt from existing file."""
+    with patch("src.config.load_dotenv"):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test_bot_token")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test_api_key")
+        monkeypatch.setenv("SYSTEM_PROMPT_FILE", "prompts/system_prompt.txt")
+
+        config = Config.from_env()
+
+        # Act
+        prompt = config.load_system_prompt()
+
+        # Assert
+        assert prompt
+        assert "Технический консультант" in prompt
+        assert len(prompt) > 50
+
+
+def test_config_load_system_prompt_file_not_found(monkeypatch):
+    """Test that ConfigError is raised when prompt file does not exist."""
+    with patch("src.config.load_dotenv"):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test_bot_token")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test_api_key")
+        monkeypatch.setenv("SYSTEM_PROMPT_FILE", "prompts/nonexistent.txt")
+
+        config = Config.from_env()
+
+        # Act & Assert
+        with pytest.raises(ConfigError, match="System prompt file not found"):
+            config.load_system_prompt()
+
+
+def test_config_load_system_prompt_empty_file(monkeypatch):
+    """Test that ConfigError is raised when prompt file is empty."""
+    with patch("src.config.load_dotenv"):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test_bot_token")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test_api_key")
+
+        # Create temporary empty file
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            temp_file = f.name
+            # Write nothing (empty file)
+
+        try:
+            monkeypatch.setenv("SYSTEM_PROMPT_FILE", temp_file)
+            config = Config.from_env()
+
+            # Act & Assert
+            with pytest.raises(ConfigError, match="System prompt file is empty"):
+                config.load_system_prompt()
+        finally:
+            # Cleanup
+            Path(temp_file).unlink(missing_ok=True)
+
+
+def test_config_load_system_prompt_with_custom_path(monkeypatch):
+    """Test loading system prompt from custom path."""
+    with patch("src.config.load_dotenv"):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test_bot_token")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test_api_key")
+
+        # Create temporary file with custom content
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            temp_file = f.name
+            f.write("Custom test prompt content")
+
+        try:
+            monkeypatch.setenv("SYSTEM_PROMPT_FILE", temp_file)
+            config = Config.from_env()
+
+            # Act
+            prompt = config.load_system_prompt()
+
+            # Assert
+            assert prompt == "Custom test prompt content"
+        finally:
+            # Cleanup
+            Path(temp_file).unlink(missing_ok=True)
+
+
+def test_config_from_env_with_system_prompt_file(monkeypatch):
+    """Test that system_prompt_file field is correctly loaded from env."""
+    with patch("src.config.load_dotenv"):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test_bot_token")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test_api_key")
+        monkeypatch.setenv("SYSTEM_PROMPT_FILE", "custom/path/prompt.txt")
+
+        config = Config.from_env()
+
+        # Assert
+        assert config.system_prompt_file == "custom/path/prompt.txt"

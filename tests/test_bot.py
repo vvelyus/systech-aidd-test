@@ -48,6 +48,7 @@ async def test_cmd_help(bot, mock_message, mock_logger):
     call_args = mock_message.answer.call_args[0][0]
     assert "/start" in call_args
     assert "/help" in call_args
+    assert "/role" in call_args
     assert "/reset" in call_args
     mock_logger.info.assert_called()
 
@@ -249,3 +250,59 @@ async def test_start_polling_error(bot, mock_logger):
             mock_session.close.assert_called_once()
             mock_logger.error.assert_called()
 
+
+# Tests for /role command
+
+
+@pytest.fixture
+def bot_with_role(mock_logger):
+    """Create a TelegramBot instance with system prompt."""
+    with patch("src.bot.Bot"), patch("src.bot.Dispatcher"):
+        bot_instance = TelegramBot(
+            token="test_token",
+            logger=mock_logger,
+            system_prompt="Ты - Технический консультант SysTech.",
+            llm_client=None,
+        )
+        return bot_instance
+
+
+@pytest.mark.asyncio
+async def test_cmd_role_displays_role(bot_with_role, mock_message, mock_logger):
+    """Test /role command displays bot role."""
+    await bot_with_role.cmd_role(mock_message)
+
+    mock_message.answer.assert_called_once()
+    call_args = mock_message.answer.call_args[0][0]
+    assert "Технический консультант" in call_args
+    assert "🎭" in call_args
+    mock_logger.info.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_cmd_role_no_user(bot_with_role, mock_message):
+    """Test /role command with no user in message."""
+    mock_message.from_user = None
+
+    await bot_with_role.cmd_role(mock_message)
+
+    # Should not call answer if no user
+    mock_message.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cmd_role_with_custom_prompt(mock_logger, mock_message):
+    """Test /role command with custom system prompt."""
+    with patch("src.bot.Bot"), patch("src.bot.Dispatcher"):
+        custom_bot = TelegramBot(
+            token="test_token",
+            logger=mock_logger,
+            system_prompt="Ты - AI Помощник.\n\nТвоя специализация: помощь.",
+            llm_client=None,
+        )
+
+        await custom_bot.cmd_role(mock_message)
+
+        mock_message.answer.assert_called_once()
+        call_args = mock_message.answer.call_args[0][0]
+        assert "AI Помощник" in call_args

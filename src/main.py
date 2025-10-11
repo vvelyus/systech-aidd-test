@@ -26,6 +26,15 @@ async def main() -> None:
     logger.info("Starting systech-aidd-test application")
     logger.info("=" * 50)
 
+    # Загружаем системный промпт из файла
+    try:
+        system_prompt = config.load_system_prompt()
+        logger.info(f"Loaded system prompt from {config.system_prompt_file}")
+    except ConfigError as e:
+        logger.error(f"Failed to load system prompt: {e}")
+        logger.warning("Using default system prompt from config")
+        system_prompt = config.system_prompt
+
     # Создаем хранилище контекста
     context_storage = InMemoryContextStorage(
         max_messages=config.max_context_messages,
@@ -39,7 +48,7 @@ async def main() -> None:
             api_key=config.openrouter_api_key,
             model=config.openrouter_model,
             base_url=config.openrouter_base_url,
-            system_prompt=config.system_prompt,
+            system_prompt=system_prompt,
             logger=logger,
             context_storage=context_storage,
         )
@@ -54,6 +63,7 @@ async def main() -> None:
         bot = TelegramBot(
             token=config.telegram_token,
             logger=logger,
+            system_prompt=system_prompt,
             llm_client=llm_client,
             bot_name=config.bot_name,
         )
