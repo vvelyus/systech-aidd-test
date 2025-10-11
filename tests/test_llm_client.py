@@ -1,31 +1,8 @@
 """Tests for LLMClient module."""
 
-import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from src.llm_client import LLMClient
-
-
-@pytest.fixture
-def mock_logger():
-    """Create a mock logger."""
-    return MagicMock(spec=logging.Logger)
-
-
-@pytest.fixture
-def llm_client(mock_logger):
-    """Create a LLMClient instance with mocked dependencies."""
-    with patch("src.llm_client.AsyncOpenAI"):
-        client = LLMClient(
-            api_key="test_key",
-            model="test_model",
-            base_url="https://test.api",
-            system_prompt="Test system prompt",
-            logger=mock_logger,
-        )
-        return client
 
 
 @pytest.mark.asyncio
@@ -148,4 +125,86 @@ def test_get_context_for_new_user(llm_client):
     context = llm_client._get_context(user_id)
 
     assert context == []
+
+
+@pytest.mark.asyncio
+async def test_get_response_without_context(llm_client, mock_logger):
+    """Test getting response without context (single message)."""
+    # Mock the API call
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = "Simple response"
+
+    llm_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    user_message = "Hello, world!"
+
+    response = await llm_client.get_response(user_message)
+
+    assert response == "Simple response"
+    mock_logger.info.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_get_response_empty_response_from_llm(llm_client):
+    """Test handling empty response from LLM."""
+    # Mock the API call with empty content
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = None  # Empty!
+
+    llm_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    # Should raise ValueError for empty response
+    with pytest.raises(ValueError, match="Empty response"):
+        await llm_client.get_response("Hello")
+
+
+@pytest.mark.asyncio
+async def test_get_response_api_error(llm_client, mock_logger):
+    """Test error handling when API fails."""
+    # Mock API to raise exception
+    llm_client.client.chat.completions.create = AsyncMock(
+        side_effect=Exception("API connection error")
+    )
+
+    # Should propagate the exception
+    with pytest.raises(Exception, match="API connection error"):
+        await llm_client.get_response("Hello")
+
+    # Should log the error
+    mock_logger.error.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_get_response_with_context_empty_response(llm_client):
+    """Test handling empty response from LLM with context."""
+    # Mock the API call with empty content
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = None  # Empty!
+
+    llm_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    user_id = 12345
+
+    # Should raise ValueError for empty response
+    with pytest.raises(ValueError, match="Empty response"):
+        await llm_client.get_response_with_context(user_id, "Hello")
+
+
+@pytest.mark.asyncio
+async def test_get_response_with_context_api_error(llm_client, mock_logger):
+    """Test error handling when API fails with context."""
+    # Mock API to raise exception
+    llm_client.client.chat.completions.create = AsyncMock(side_effect=Exception("API Error"))
+
+    user_id = 12345
+
+    # Should propagate the exception
+    with pytest.raises(Exception, match="API Error"):
+        await llm_client.get_response_with_context(user_id, "Hello")
+
+    # Should log the error
+    mock_logger.error.assert_called()
 

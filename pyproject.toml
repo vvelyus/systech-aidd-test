@@ -60,3 +60,16 @@ disallow_any_unimported = false
 mypy_path = "src"
 explicit_package_bases = true
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+addopts = "--strict-markers --cov-config=pyproject.toml"
+
+[tool.coverage.run]
+omit = [
+    "src/main.py",  # Entry point - tested via integration tests
+]
+

@@ -1,27 +1,10 @@
 """Tests for TelegramBot module."""
 
-import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import Message, User
 
 from src.bot import TelegramBot
-
-
-@pytest.fixture
-def mock_logger():
-    """Create a mock logger."""
-    return MagicMock(spec=logging.Logger)
-
-
-@pytest.fixture
-def mock_llm_client():
-    """Create a mock LLM client."""
-    client = MagicMock()
-    client.get_response_with_context = AsyncMock(return_value="LLM response")
-    client.reset_context = MagicMock()
-    return client
 
 
 @pytest.fixture
@@ -42,20 +25,6 @@ def bot_with_llm(mock_logger, mock_llm_client):
             token="test_token", logger=mock_logger, llm_client=mock_llm_client
         )
         return bot_instance
-
-
-@pytest.fixture
-def mock_message():
-    """Create a mock Message object."""
-    message = MagicMock(spec=Message)
-    message.from_user = MagicMock(spec=User)
-    message.from_user.id = 12345
-    message.from_user.username = "test_user"
-    message.text = "Test message"
-    message.chat = MagicMock()
-    message.chat.id = 12345
-    message.answer = AsyncMock()
-    return message
 
 
 @pytest.mark.asyncio
@@ -178,4 +147,105 @@ async def test_handle_message_error(bot_with_llm, mock_message, mock_llm_client,
         call_args = mock_message.answer.call_args[0][0]
         assert "ошибка" in call_args
         mock_logger.error.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_cmd_start_no_user(bot):
+    """Test /start command when from_user is None."""
+    # Create message without from_user
+    mock_msg = MagicMock()
+    mock_msg.from_user = None
+    mock_msg.answer = AsyncMock()
+
+    # Should return early without calling answer
+    await bot.cmd_start(mock_msg)
+
+    mock_msg.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cmd_help_no_user(bot):
+    """Test /help command when from_user is None."""
+    # Create message without from_user
+    mock_msg = MagicMock()
+    mock_msg.from_user = None
+    mock_msg.answer = AsyncMock()
+
+    # Should return early without calling answer
+    await bot.cmd_help(mock_msg)
+
+    mock_msg.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cmd_status_no_user(bot):
+    """Test /status command when from_user is None."""
+    # Create message without from_user
+    mock_msg = MagicMock()
+    mock_msg.from_user = None
+    mock_msg.answer = AsyncMock()
+
+    # Should return early without calling answer
+    await bot.cmd_status(mock_msg)
+
+    mock_msg.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cmd_reset_no_user(bot):
+    """Test /reset command when from_user is None."""
+    # Create message without from_user
+    mock_msg = MagicMock()
+    mock_msg.from_user = None
+    mock_msg.answer = AsyncMock()
+
+    # Should return early without calling answer
+    await bot.cmd_reset(mock_msg)
+
+    mock_msg.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_message_no_user(bot):
+    """Test message handling when from_user is None."""
+    # Create message without from_user
+    mock_msg = MagicMock()
+    mock_msg.from_user = None
+    mock_msg.answer = AsyncMock()
+
+    # Should return early without calling answer
+    await bot.handle_message(mock_msg)
+
+    mock_msg.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_start_polling_success(bot, mock_logger):
+    """Test bot start in polling mode."""
+    with patch.object(bot.dp, "start_polling", new=AsyncMock()) as mock_poll:
+        with patch.object(bot.bot, "session") as mock_session:
+            mock_session.close = AsyncMock()
+
+            # Act
+            await bot.start()
+
+            # Assert
+            mock_poll.assert_called_once_with(bot.bot)
+            mock_session.close.assert_called_once()
+            mock_logger.info.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_start_polling_error(bot, mock_logger):
+    """Test bot start with error in polling."""
+    with patch.object(bot.dp, "start_polling", new=AsyncMock(side_effect=Exception("Polling error"))):
+        with patch.object(bot.bot, "session") as mock_session:
+            mock_session.close = AsyncMock()
+
+            # Should propagate exception but still close session
+            with pytest.raises(Exception, match="Polling error"):
+                await bot.start()
+
+            mock_session.close.assert_called_once()
+            mock_logger.error.assert_called()
 
