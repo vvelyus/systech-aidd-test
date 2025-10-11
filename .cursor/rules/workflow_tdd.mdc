@@ -1,5 +1,5 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
 # TDD Workflow - Test-Driven Development Process
 
