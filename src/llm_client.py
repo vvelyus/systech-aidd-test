@@ -108,10 +108,10 @@ class LLMClient:
         """
         try:
             # Добавляем сообщение пользователя в контекст
-            self.context_storage.add_message(user_id, "user", user_message)
+            await self.context_storage.add_message(user_id, "user", user_message)
 
             # Получаем историю для пользователя
-            context = self.context_storage.get_context(user_id)
+            context = await self.context_storage.get_context(user_id)
 
             # Формируем запрос с системным промптом и историей
             messages = [
@@ -134,7 +134,7 @@ class LLMClient:
             answer = response.choices[0].message.content
             if not answer:
                 raise ValueError("Empty response from LLM")
-            self.context_storage.add_message(user_id, "assistant", answer)
+            await self.context_storage.add_message(user_id, "assistant", answer)
 
             self.logger.info(f"Received response from LLM: user_id={user_id}, length={len(answer)}")
 
@@ -147,11 +147,11 @@ class LLMClient:
             )
             raise
 
-    def reset_context(self, user_id: int) -> None:
+    async def reset_context(self, user_id: int) -> None:
         """
         Очистить контекст диалога для пользователя.
 
         Args:
             user_id: ID пользователя
         """
-        self.context_storage.reset_context(user_id)
+        await self.context_storage.reset_context(user_id)

@@ -13,6 +13,7 @@ from aiogram.types import Message
 from src.messages import BotMessages
 
 if TYPE_CHECKING:
+    from src.database import DatabaseManager
     from src.llm_client import LLMClient
 
 
@@ -54,6 +55,7 @@ class TelegramBot:
         system_prompt: str = "Ты - AI-ассистент.",
         llm_client: Optional["LLMClient"] = None,
         bot_name: str = "AI Assistant",
+        db_manager: Optional["DatabaseManager"] = None,
     ) -> None:
         """
         Инициализация бота.
@@ -64,6 +66,7 @@ class TelegramBot:
             system_prompt: Системный промпт для отображения роли
             llm_client: Клиент для работы с LLM (опционально)
             bot_name: Имя бота для отображения в сообщениях
+            db_manager: Менеджер базы данных для сохранения пользователей
         """
         self.logger = logger
         self.bot = Bot(token=token)
@@ -71,6 +74,7 @@ class TelegramBot:
         self.system_prompt = system_prompt
         self.llm_client = llm_client
         self.bot_name = bot_name
+        self.db_manager = db_manager
 
         # Регистрируем обработчики
         self._register_handlers()
@@ -89,6 +93,28 @@ class TelegramBot:
         self.dp.message.register(self.cmd_role, Command("role"))
         self.dp.message.register(self.handle_message, F.text)
 
+    async def _save_user_data(self, message: Message) -> None:
+        """
+        Сохраняет или обновляет данные пользователя в БД.
+
+        Args:
+            message: Сообщение от пользователя
+        """
+        if not message.from_user or not self.db_manager:
+            return
+
+        try:
+            await self.db_manager.upsert_user(
+                telegram_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                language_code=message.from_user.language_code,
+            )
+        except Exception as e:
+            # Логируем ошибку, но не прерываем выполнение
+            self.logger.error(f"Failed to save user data: {e}", exc_info=True)
+
     @log_command
     async def cmd_start(self, message: Message) -> None:
         """
@@ -99,6 +125,7 @@ class TelegramBot:
         """
         if not message.from_user:
             return
+        await self._save_user_data(message)
         username = message.from_user.username or "user"
         await message.answer(BotMessages.welcome(username, self.bot_name))
 
@@ -141,7 +168,7 @@ class TelegramBot:
         user_id = message.from_user.id
 
         if self.llm_client:
-            self.llm_client.reset_context(user_id)
+            await self.llm_client.reset_context(user_id)
             await message.answer(BotMessages.context_reset_success())
         else:
             await message.answer(BotMessages.llm_not_connected())
@@ -172,6 +199,7 @@ class TelegramBot:
         """
         if not message.from_user:
             return
+        await self._save_user_data(message)
         user_id = message.from_user.id
         text = message.text or ""
         text_length = len(text)

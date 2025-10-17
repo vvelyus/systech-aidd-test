@@ -5,7 +5,8 @@ import sys
 
 from src.bot import TelegramBot
 from src.config import Config, ConfigError
-from src.context_storage import InMemoryContextStorage
+from src.context_storage import DatabaseContextStorage
+from src.database import DatabaseManager
 from src.llm_client import LLMClient
 from src.logger import setup_logger
 
@@ -35,10 +36,24 @@ async def main() -> None:
         logger.warning("Using default system prompt from config")
         system_prompt = config.system_prompt
 
+    # Инициализируем DatabaseManager
+    db_manager = DatabaseManager(database_url=config.database_url, logger=logger)
+
+    try:
+        await db_manager.init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}", exc_info=True)
+        logger.warning("Exiting due to database initialization failure")
+        sys.exit(1)
+
+    # Создаем session для хранилища контекста
+    db_session = db_manager.create_session()
+
     # Создаем хранилище контекста
-    context_storage = InMemoryContextStorage(
+    context_storage = DatabaseContextStorage(
+        session=db_session,
         max_messages=config.max_context_messages,
-        max_users=1000,
         logger=logger,
     )
 
@@ -66,6 +81,7 @@ async def main() -> None:
             system_prompt=system_prompt,
             llm_client=llm_client,
             bot_name=config.bot_name,
+            db_manager=db_manager,
         )
         await bot.start()
     except KeyboardInterrupt:
@@ -74,6 +90,8 @@ async def main() -> None:
         logger.error(f"Critical error: {e}", exc_info=True)
         sys.exit(1)
     finally:
+        # Закрываем соединение с БД
+        await db_manager.close()
         logger.info("Application stopped")
 
 

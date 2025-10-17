@@ -3,11 +3,16 @@
 import logging
 from typing import Protocol
 
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models import Message
+
 
 class ContextStorage(Protocol):
     """Протокол для хранилища контекста диалогов."""
 
-    def add_message(self, user_id: int, role: str, content: str) -> None:
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
         """
         Добавить сообщение в контекст пользователя.
 
@@ -18,7 +23,7 @@ class ContextStorage(Protocol):
         """
         ...
 
-    def get_context(self, user_id: int) -> list[dict[str, str]]:
+    async def get_context(self, user_id: int) -> list[dict[str, str]]:
         """
         Получить контекст для пользователя.
 
@@ -30,7 +35,7 @@ class ContextStorage(Protocol):
         """
         ...
 
-    def reset_context(self, user_id: int) -> None:
+    async def reset_context(self, user_id: int) -> None:
         """
         Очистить контекст диалога для пользователя.
 
@@ -68,7 +73,7 @@ class InMemoryContextStorage:
         self._max_users = max_users
         self._logger = logger
 
-    def add_message(self, user_id: int, role: str, content: str) -> None:
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
         """
         Добавить сообщение в контекст с ограничением.
 
@@ -106,7 +111,7 @@ class InMemoryContextStorage:
                     f"Context trimmed to {self._max_messages} messages for user_id={user_id}"
                 )
 
-    def get_context(self, user_id: int) -> list[dict[str, str]]:
+    async def get_context(self, user_id: int) -> list[dict[str, str]]:
         """
         Получить контекст для пользователя.
 
@@ -118,7 +123,7 @@ class InMemoryContextStorage:
         """
         return self._storage.get(user_id, [])
 
-    def reset_context(self, user_id: int) -> None:
+    async def reset_context(self, user_id: int) -> None:
         """
         Очистить контекст диалога для пользователя.
 
@@ -147,3 +152,119 @@ class InMemoryContextStorage:
         self._storage.clear()
         if self._logger:
             self._logger.info("All context data cleared")
+
+
+class DatabaseContextStorage:
+    """
+    Хранилище контекста в базе данных.
+
+    Сохраняет историю сообщений в БД с использованием SQLAlchemy.
+    Поддерживает soft delete и ограничение по количеству сообщений.
+    """
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        max_messages: int = 20,
+        logger: logging.Logger | None = None,
+    ) -> None:
+        """
+        Инициализация хранилища.
+
+        Args:
+            session: Async SQLAlchemy session
+            max_messages: Максимальное количество сообщений на пользователя
+            logger: Логгер для событий (опционально)
+        """
+        self._session = session
+        self._max_messages = max_messages
+        self._logger = logger
+
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
+        """
+        Добавить сообщение в контекст.
+
+        Автоматически вычисляет длину сообщения.
+
+        Args:
+            user_id: ID пользователя
+            role: Роль отправителя (user или assistant)
+            content: Текст сообщения
+        """
+        import datetime
+
+        message = Message(
+            user_id=user_id,
+            role=role,
+            content=content,
+            length=len(content),
+            created_at=datetime.datetime.now(),
+            is_deleted=False,
+        )
+        self._session.add(message)
+        await self._session.commit()
+
+        if self._logger:
+            self._logger.debug(
+                f"Added message for user_id={user_id}, role={role}, length={len(content)}"
+            )
+
+    async def get_context(self, user_id: int) -> list[dict[str, str]]:
+        """
+        Получить контекст для пользователя.
+
+        Возвращает последние N активных сообщений в хронологическом порядке.
+
+        Args:
+            user_id: ID пользователя
+
+        Returns:
+            list: Список сообщений в формате [{"role": ..., "content": ...}, ...]
+        """
+        # Выбираем последние N активных сообщений
+        stmt = (
+            select(Message)
+            .where(Message.user_id == user_id, Message.is_deleted == False)  # noqa: E712
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(self._max_messages)
+        )
+
+        result = await self._session.execute(stmt)
+        messages = result.scalars().all()
+
+        # Разворачиваем, чтобы получить хронологический порядок
+        messages_reversed = list(reversed(messages))
+
+        context = [{"role": msg.role, "content": msg.content} for msg in messages_reversed]
+
+        if self._logger:
+            self._logger.debug(f"Retrieved {len(context)} messages for user_id={user_id}")
+
+        return context
+
+    async def reset_context(self, user_id: int) -> None:
+        """
+        Очистить контекст диалога для пользователя (soft delete).
+
+        Помечает все активные сообщения пользователя как удаленные.
+
+        Args:
+            user_id: ID пользователя
+        """
+        stmt = (
+            update(Message)
+            .where(Message.user_id == user_id, Message.is_deleted == False)  # noqa: E712
+            .values(is_deleted=True)
+        )
+
+        await self._session.execute(stmt)
+        await self._session.commit()
+
+        if self._logger:
+            self._logger.info(f"Context reset for user_id={user_id}")
+
+    async def close(self) -> None:
+        """Закрыть сессию БД."""
+        await self._session.close()
+        if self._logger:
+            self._logger.info("Database session closed")

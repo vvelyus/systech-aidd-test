@@ -306,3 +306,97 @@ async def test_cmd_role_with_custom_prompt(mock_logger, mock_message):
         mock_message.answer.assert_called_once()
         call_args = mock_message.answer.call_args[0][0]
         assert "AI Помощник" in call_args
+
+
+# Tests for user data saving (Sprint S2)
+
+
+@pytest.fixture
+def bot_with_db_manager(mock_logger):
+    """Create a TelegramBot instance with db_manager."""
+    from src.models import User
+
+    mock_db_manager = MagicMock()
+    # Make upsert_user an AsyncMock that returns a User
+    mock_user = User(telegram_id=12345, username="test_user")
+    mock_db_manager.upsert_user = AsyncMock(return_value=mock_user)
+
+    with patch("src.bot.Bot"), patch("src.bot.Dispatcher"):
+        bot_instance = TelegramBot(
+            token="test_token",
+            logger=mock_logger,
+            llm_client=None,
+            db_manager=mock_db_manager,
+        )
+        return bot_instance
+
+
+@pytest.mark.asyncio
+async def test_save_user_data_success(bot_with_db_manager, mock_message):
+    """Test _save_user_data successfully saves user data."""
+    await bot_with_db_manager._save_user_data(mock_message)
+
+    bot_with_db_manager.db_manager.upsert_user.assert_called_once_with(
+        telegram_id=12345,
+        username="test_user",
+        first_name="Test",
+        last_name="User",
+        language_code="en",
+    )
+
+
+@pytest.mark.asyncio
+async def test_save_user_data_no_user(bot_with_db_manager, mock_message):
+    """Test _save_user_data with no user in message."""
+    mock_message.from_user = None
+
+    await bot_with_db_manager._save_user_data(mock_message)
+
+    # Should not call upsert_user if no user
+    bot_with_db_manager.db_manager.upsert_user.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_save_user_data_no_db_manager(bot, mock_message):
+    """Test _save_user_data without db_manager."""
+    # bot fixture has no db_manager
+    await bot._save_user_data(mock_message)
+
+    # Should not raise an error, just return early
+
+
+@pytest.mark.asyncio
+async def test_save_user_data_handles_exception(bot_with_db_manager, mock_message, mock_logger):
+    """Test _save_user_data handles database exceptions gracefully."""
+    bot_with_db_manager.db_manager.upsert_user.side_effect = Exception("DB error")
+
+    # Should not raise exception
+    await bot_with_db_manager._save_user_data(mock_message)
+
+    # Should log error
+    mock_logger.error.assert_called_once()
+    call_args = str(mock_logger.error.call_args)
+    assert "Failed to save user data" in call_args
+
+
+@pytest.mark.asyncio
+async def test_cmd_start_saves_user_data(bot_with_db_manager, mock_message):
+    """Test /start command saves user data."""
+    await bot_with_db_manager.cmd_start(mock_message)
+
+    # Should save user data
+    bot_with_db_manager.db_manager.upsert_user.assert_called_once()
+    # And send welcome message
+    mock_message.answer.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_message_saves_user_data(bot_with_db_manager, mock_message):
+    """Test message handling saves user data."""
+    with patch.object(bot_with_db_manager.bot, "send_chat_action", new=AsyncMock()):
+        await bot_with_db_manager.handle_message(mock_message)
+
+        # Should save user data
+        bot_with_db_manager.db_manager.upsert_user.assert_called_once()
+        # And send response
+        mock_message.answer.assert_called_once()

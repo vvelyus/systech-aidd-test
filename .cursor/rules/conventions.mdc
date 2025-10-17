@@ -1,5 +1,5 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
 # Conventions - Правила разработки для Code Assistant
 
@@ -210,10 +210,10 @@ def test_method_name_scenario():
     """Test method_name with specific scenario."""
     # Arrange
     setup_data = ...
-    
+
     # Act
     result = method_name(setup_data)
-    
+
     # Assert
     assert result == expected_value
 ```
@@ -268,7 +268,7 @@ from typing import Protocol, List
 
 class ContextStorage(Protocol):
     """Протокол для хранилища контекста."""
-    
+
     def add_message(self, user_id: int, role: str, content: str) -> None:
         """Добавить сообщение."""
         ...
@@ -281,22 +281,22 @@ class Message:
 
 class InMemoryContextStorage:
     """Хранилище контекста в памяти."""
-    
+
     def __init__(self, max_messages: int = 20) -> None:
         """Инициализация хранилища."""
         self._storage: dict[int, List[Message]] = {}
         self._max_messages = max_messages
-    
+
     def add_message(
         self, user_id: int, role: str, content: str
     ) -> None:
         """Добавить сообщение в контекст."""
         if user_id not in self._storage:
             self._storage[user_id] = []
-        
+
         self._storage[user_id].append(Message(role, content))
         self._trim_context(user_id)
-    
+
     def _trim_context(self, user_id: int) -> None:
         """Обрезать контекст до лимита."""
         if len(self._storage[user_id]) > self._max_messages:
@@ -309,16 +309,16 @@ class InMemoryContextStorage:
 
 ## Что НЕ делать
 
-❌ Создавать абстракции для возможного будущего расширения  
-❌ Помещать несколько классов в один файл  
-❌ Использовать сложные паттерны проектирования без необходимости  
-❌ Добавлять функционал "на всякий случай"  
-❌ Писать синхронный код  
-❌ Использовать глобальные переменные  
-❌ Игнорировать docstrings  
-❌ Игнорировать type hints  
-❌ Коммитить код без прохождения `make ci`  
-❌ Снижать test coverage  
+❌ Создавать абстракции для возможного будущего расширения
+❌ Помещать несколько классов в один файл
+❌ Использовать сложные паттерны проектирования без необходимости
+❌ Добавлять функционал "на всякий случай"
+❌ Писать синхронный код
+❌ Использовать глобальные переменные
+❌ Игнорировать docstrings
+❌ Игнорировать type hints
+❌ Коммитить код без прохождения `make ci`
+❌ Снижать test coverage
 ❌ Игнорировать ошибки mypy/ruff
 
 ---
@@ -368,4 +368,3 @@ class InMemoryContextStorage:
 ---
 
 > **Помни:** Качество кода важно, но KISS превыше всего. Не усложняй ради "чистоты".
-

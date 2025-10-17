@@ -26,6 +26,7 @@ class Config:
     max_context_messages: int = 20
     log_file_path: str = "logs/bot.log"
     log_level: str = "INFO"
+    database_url: str = "sqlite+aiosqlite:///./data/messages.db"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -66,6 +67,7 @@ class Config:
             max_context_messages=int(os.getenv("MAX_CONTEXT_MESSAGES") or cls.max_context_messages),
             log_file_path=os.getenv("LOG_FILE_PATH") or cls.log_file_path,
             log_level=os.getenv("LOG_LEVEL") or cls.log_level,
+            database_url=os.getenv("DATABASE_URL") or cls.database_url,
         )
 
     def load_system_prompt(self) -> str:

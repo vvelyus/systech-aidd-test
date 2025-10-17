@@ -18,11 +18,18 @@
 ### Core
 - **Python 3.11+** - используется установленная версия
 - **uv** - управление зависимостями и виртуальным окружением
+- **Docker** - контейнеризация приложения
 
 ### Основные библиотеки
 - **aiogram 3.x** - фреймворк для Telegram Bot API (polling)
 - **openai** - клиент для работы с LLM через OpenRouter
 - **python-dotenv** - управление конфигурацией
+
+### База данных (Sprint S1)
+- **SQLite 3** - легковесная файловая СУБД для персистентного хранения
+- **SQLAlchemy 2.0** - ORM с асинхронной поддержкой
+- **aiosqlite** - асинхронный драйвер для SQLite
+- **Alembic** - инструмент управления миграциями схемы БД
 
 ### Инструменты разработки
 - **make** - автоматизация команд
@@ -70,9 +77,16 @@ systech-aidd-test/
 ├── docs/                       # Документация
 │   ├── IDEA.md
 │   ├── VISION.md
-│   ├── TASKLIST.md
-│   ├── TASKLIST_TECH_DEBT.md
-│   └── WORKFLOW_TECH_DEBT.md
+│   ├── ADR.md                 # Architecture Decision Records
+│   ├── roadmap.md             # Дорожная карта спринтов
+│   ├── guides/                # Руководства
+│   │   ├── DATABASE_GUIDE.md  # Работа с БД
+│   │   ├── DATABASE_SCHEMA.md # Схема БД и ER-диаграмма
+│   │   └── ...
+│   └── tasklists/             # Детальные планы спринтов
+│       ├── tasklist-s0.md
+│       ├── tasklist-s1.md
+│       └── ...
 ├── src/                        # Исходный код
 │   ├── __init__.py
 │   ├── main.py                # Точка входа
@@ -80,8 +94,15 @@ systech-aidd-test/
 │   ├── llm_client.py          # LLMClient класс
 │   ├── config.py              # Config dataclass
 │   ├── context_storage.py     # ContextStorage Protocol + реализации
+│   ├── database.py            # DatabaseManager для управления БД (S1)
+│   ├── models.py              # SQLAlchemy модели (Message) (S1)
 │   ├── messages.py            # Текстовые константы
 │   └── logger.py              # Logger настройка
+├── alembic/                    # Миграции БД (S1)
+│   ├── versions/              # Файлы миграций
+│   └── env.py                 # Alembic configuration
+├── migrations/                 # SQL скрипты (S1)
+│   └── schema.sql             # Ручное создание таблиц
 ├── prompts/                    # Системные промпты
 │   └── system_prompt.txt      # Роль и поведение бота
 ├── tests/                      # Тесты (coverage >= 85%)
@@ -89,6 +110,8 @@ systech-aidd-test/
 │   ├── conftest.py            # Общие фикстуры
 │   ├── integration/           # Интеграционные тесты
 │   └── test_*.py              # Unit тесты
+├── data/                       # Персистентные данные (S1)
+│   └── messages.db            # SQLite база данных
 ├── logs/                       # Логи
 ├── .cursor/rules/              # Cursor rules
 │   ├── conventions.mdc
@@ -98,7 +121,11 @@ systech-aidd-test/
 ├── .env.example               # Пример конфигурации
 ├── .env                       # Конфигурация
 ├── .gitignore
-├── Makefile                   # Команды управления (+ ci)
+├── .dockerignore              # Исключения для Docker (S1)
+├── Dockerfile                 # Docker образ приложения (S1)
+├── docker-compose.yml         # Docker orchestration (S1)
+├── alembic.ini                # Alembic конфигурация (S1)
+├── Makefile                   # Команды управления (+ ci, docker, migrations)
 ├── pyproject.toml             # Конфигурация (ruff, mypy, pytest)
 ├── uv.lock
 └── README.md                  # Инструкция
@@ -117,9 +144,12 @@ systech-aidd-test/
 3. **Config** - управление конфигурацией (immutable dataclass)
    - Метод `load_system_prompt()` для загрузки роли из файла
 4. **ContextStorage** - абстракция хранилища контекста (Protocol)
-5. **InMemoryContextStorage** - реализация in-memory хранилища
-6. **Logger** - логирование событий
-7. **BotMessages** - текстовые константы
+5. **InMemoryContextStorage** - реализация in-memory хранилища (Sprint S0)
+6. **DatabaseContextStorage** - персистентное хранилище на SQLite (Sprint S1)
+7. **DatabaseManager** - управление подключением к БД и сессиями (Sprint S1)
+8. **Message** - SQLAlchemy модель для хранения сообщений (Sprint S1)
+9. **Logger** - логирование событий
+10. **BotMessages** - текстовые константы
 
 ### Поток данных
 
@@ -128,17 +158,23 @@ systech-aidd-test/
                                 ↓            ↓              ↓
                                 ↓      ContextStorage      ↓
                                 ↓            ↓              ↓
-                         Ответ пользователю ← ←  Ответ LLM
+                                ↓     DatabaseManager      ↓
+                                ↓            ↓              ↓
+                                ↓      SQLite (messages)   ↓
+                                ↓                           ↓
+                         Ответ пользователю ← ← ← Ответ LLM
 ```
 
 **Взаимодействие компонентов:**
 ```
 1. TelegramBot получает сообщение от пользователя
 2. TelegramBot вызывает LLMClient.get_response_with_context()
-3. LLMClient запрашивает контекст из ContextStorage
-4. LLMClient формирует запрос к OpenRouter API
-5. LLMClient сохраняет ответ в ContextStorage
-6. TelegramBot отправляет ответ пользователю
+3. LLMClient запрашивает контекст из ContextStorage (Protocol)
+4. DatabaseContextStorage извлекает последние N сообщений из БД через AsyncSession
+5. LLMClient формирует запрос к OpenRouter API с контекстом
+6. LLMClient получает ответ от LLM
+7. LLMClient сохраняет ответ в ContextStorage (запись в БД)
+8. TelegramBot отправляет ответ пользователю
 ```
 
 ### Управление контекстом
@@ -146,14 +182,17 @@ systech-aidd-test/
 **Архитектурный подход:**
 - История диалога через абстракцию `ContextStorage` (Protocol)
 - Dependency Injection в LLMClient
-- Текущая реализация: `InMemoryContextStorage`
+- **Текущая реализация (Sprint S1):** `DatabaseContextStorage` - персистентное хранение в SQLite
+- **Предыдущая реализация (Sprint S0):** `InMemoryContextStorage` - хранение в памяти
 - Контекст: последние 20 сообщений на пользователя
 
 **Преимущества архитектуры:**
 - **Тестируемость:** Легко мокировать storage в тестах
-- **Масштабируемость:** Замена на Redis/DB без изменений LLMClient
+- **Персистентность (S1):** История диалогов сохраняется между перезапусками
+- **Масштабируемость:** Замена на Redis/другую БД без изменений LLMClient
 - **SOLID:** Следование Dependency Inversion Principle
 - **Простота:** Каждый компонент решает одну задачу (SRP)
+- **Soft Delete (S1):** Логическое удаление сообщений без физической потери данных
 
 ---
 
@@ -170,6 +209,7 @@ class Config:
     openrouter_model: str = "anthropic/claude-3.5-sonnet"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     system_prompt_file: str = "prompts/system_prompt.txt"
+    database_url: str = "sqlite+aiosqlite:///./data/messages.db"  # Sprint S1
     max_context_messages: int = 20
     log_file_path: str = "logs/bot.log"
     log_level: str = "INFO"
@@ -184,7 +224,48 @@ class Config:
         ...
 ```
 
-### История диалога (in-memory dict)
+### История диалога (SQLite, Sprint S1)
+
+**Таблица `messages`:**
+
+| Поле        | Тип         | Описание                                     | Ограничения/Индексы                               |
+|-------------|-------------|----------------------------------------------|---------------------------------------------------|
+| `id`        | `INTEGER`   | Уникальный идентификатор сообщения           | `PRIMARY KEY`, `AUTOINCREMENT`                    |
+| `user_id`   | `INTEGER`   | ID пользователя Telegram                     | `NOT NULL`, `INDEX`                               |
+| `role`      | `VARCHAR(20)`| Роль отправителя (`user` или `assistant`)    | `NOT NULL`                                        |
+| `content`   | `TEXT`      | Текст сообщения                              | `NOT NULL`                                        |
+| `length`    | `INTEGER`   | Длина сообщения в символах                   | `NOT NULL`                                        |
+| `created_at`| `TIMESTAMP` | Дата и время создания сообщения              | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP`           |
+| `is_deleted`| `BOOLEAN`   | Флаг "мягкого" удаления (soft delete)        | `NOT NULL`, `DEFAULT 0`, `INDEX`                  |
+
+**Индексы:**
+- `idx_user_id_created_at`: Композитный индекс по `user_id` и `created_at`
+- `idx_is_deleted`: Индекс по `is_deleted` для фильтрации активных сообщений
+
+**SQLAlchemy модель:**
+```python
+class Message(Base):
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    length: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0", index=True
+    )
+```
+
+**Soft Delete стратегия:**
+- Метод `reset_context()` устанавливает `is_deleted = True`
+- Метод `get_context()` возвращает только `is_deleted = False`
+- Полная история сохраняется для аудита/восстановления
+
+### История диалога (In-Memory, Sprint S0, deprecated)
 
 ```python
 {
@@ -228,27 +309,73 @@ class Config:
 
 ### ContextStorage Protocol
 
-**Определение интерфейса:**
+**Определение интерфейса (Sprint S1 - async):**
 ```python
 from typing import Protocol, List, Dict
 
 class ContextStorage(Protocol):
     """Протокол для хранилища контекста диалогов."""
 
-    def add_message(self, user_id: int, role: str, content: str) -> None:
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
         """Добавить сообщение в контекст пользователя."""
         ...
 
-    def get_context(self, user_id: int) -> List[Dict[str, str]]:
+    async def get_context(self, user_id: int) -> List[Dict[str, str]]:
         """Получить историю сообщений для пользователя."""
         ...
 
-    def reset_context(self, user_id: int) -> None:
+    async def reset_context(self, user_id: int) -> None:
         """Очистить контекст для пользователя."""
         ...
 ```
 
-**Реализация in-memory:**
+**Реализация DatabaseContextStorage (Sprint S1, текущая):**
+```python
+class DatabaseContextStorage:
+    """Персистентное хранилище на SQLite с soft delete."""
+
+    def __init__(self, session: AsyncSession, max_messages: int = 20, logger: logging.Logger) -> None:
+        self._session = session
+        self._max_messages = max_messages
+        self._logger = logger
+
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
+        """Сохранить сообщение в БД с расчетом длины."""
+        message = Message(
+            user_id=user_id,
+            role=role,
+            content=content,
+            length=len(content),
+            created_at=datetime.now(),
+            is_deleted=False
+        )
+        self._session.add(message)
+        await self._session.flush()
+
+    async def get_context(self, user_id: int) -> List[Dict[str, str]]:
+        """Получить последние N активных сообщений из БД."""
+        stmt = (
+            select(Message)
+            .where(Message.user_id == user_id, Message.is_deleted == False)
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(self._max_messages)
+        )
+        result = await self._session.execute(stmt)
+        messages = result.scalars().all()
+        return [{"role": m.role, "content": m.content} for m in reversed(messages)]
+
+    async def reset_context(self, user_id: int) -> None:
+        """Выполнить soft delete всех сообщений пользователя."""
+        stmt = (
+            update(Message)
+            .where(Message.user_id == user_id, Message.is_deleted == False)
+            .values(is_deleted=True)
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+```
+
+**Реализация in-memory (Sprint S0, deprecated):**
 ```python
 class InMemoryContextStorage:
     """In-memory хранилище с ограничением по количеству сообщений."""
@@ -257,7 +384,7 @@ class InMemoryContextStorage:
         self._storage: Dict[int, List[Dict[str, str]]] = {}
         self._max_messages = max_messages
 
-    def add_message(self, user_id: int, role: str, content: str) -> None:
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
         if user_id not in self._storage:
             self._storage[user_id] = []
 
@@ -269,7 +396,8 @@ class InMemoryContextStorage:
 ```
 
 **Готовность к масштабированию:**
-- Легко заменить на `RedisContextStorage` или `DatabaseContextStorage`
+- ✅ **Реализовано:** `DatabaseContextStorage` для персистентного хранения (Sprint S1)
+- 🔄 **Возможно:** `RedisContextStorage` для распределенной архитектуры
 - Изменения только в точке инициализации, LLMClient не меняется
 - Следование Dependency Inversion Principle (SOLID)
 
@@ -311,6 +439,9 @@ TELEGRAM_BOT_TOKEN=your_token_here
 OPENROUTER_API_KEY=your_key_here
 OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
+# Database (Sprint S1)
+DATABASE_URL=sqlite+aiosqlite:///./data/messages.db
 
 # LLM Settings
 SYSTEM_PROMPT_FILE=prompts/system_prompt.txt
@@ -509,6 +640,9 @@ make ci
 - ✅ **Specialized:** AI-продукт с четко определенной ролью
 - ✅ **Transparent:** Команда `/role` для отображения роли и функций
 - ✅ **Flexible:** Системный промпт в файле - смена роли без изменения кода
+- ✅ **Persistent (S1):** История диалогов сохраняется в SQLite между перезапусками
+- ✅ **Containerized (S1):** Docker для простого развертывания
+- ✅ **Maintainable (S1):** Alembic миграции для версионирования схемы БД
 - ✅ **Type-safe:** Полная типизация с mypy strict mode
 - ✅ **Tested:** Coverage >= 85% с unit и integration тестами
 - ✅ **Maintainable:** SOLID принципы, DRY, понятная архитектура
@@ -516,7 +650,9 @@ make ci
 - ✅ **Quality-controlled:** Автоматизированные проверки через make ci
 
 **Готовность:**
-- 🚀 К продуктиву: MVP функционал работает
-- 📈 К масштабированию: Один код → множество специализированных ботов
-- 🔧 К поддержке: Высокое качество кода и тесты
-- 🎯 К кастомизации: Изменение роли через файл промпта
+- 🚀 **К продуктиву:** MVP функционал работает с персистентным хранением
+- 📈 **К масштабированию:** Один код → множество специализированных ботов
+- 🔧 **К поддержке:** Высокое качество кода, тесты, миграции БД
+- 🎯 **К кастомизации:** Изменение роли через файл промпта
+- 🐳 **К деплою:** Docker-образ готов к запуску в любом окружении
+- 💾 **К долгосрочному использованию:** Soft delete и полная история диалогов

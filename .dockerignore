@@ -1,0 +1,58 @@
+# Файлы и директории, которые не нужно копировать в Docker образ
+# Sprint S1: Docker контейнеризация
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Данные и логи (монтируются через volumes)
+data/
+logs/
+test_logs/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Документация (не нужна в runtime)
+docs/
+*.md
+README.md
+
+# Тесты
+tests/
+pytest.ini
+.coverage
+htmlcov/
+.pytest_cache/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Временные файлы
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Разное
+Makefile
+.env.example
