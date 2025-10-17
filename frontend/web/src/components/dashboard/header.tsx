@@ -8,9 +8,10 @@ import { ThemeToggle } from "@/components/theme-toggle"
 
 interface DashboardHeaderProps {
   onMenuClick?: () => void
+  title?: string
 }
 
-export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
+export function DashboardHeader({ onMenuClick, title = "Dashboard" }: DashboardHeaderProps) {
   return (
     <header className="border-b border-border bg-background sticky top-0 z-40">
       <div className="flex items-center justify-between px-6 py-3 h-14">
@@ -23,7 +24,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h2 className="text-lg font-semibold">Dashboard</h2>
+          <h2 className="text-lg font-semibold">{title}</h2>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />

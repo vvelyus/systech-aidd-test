@@ -35,12 +35,12 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
             href="/chat"
             className={cn(
               "flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent transition-colors",
-              "text-sm font-medium text-muted-foreground"
+              "text-sm font-medium"
             )}
             onClick={() => onOpenChange?.(false)}
           >
             <MessageCircle className="h-5 w-5" />
-            <span>Чат (скоро)</span>
+            <span>Чат</span>
           </Link>
         </nav>
       </SheetContent>
