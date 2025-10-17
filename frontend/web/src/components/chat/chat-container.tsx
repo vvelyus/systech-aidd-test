@@ -1,76 +1,45 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { ChatMode, ChatMessage as ChatMessageType } from "@/types/chat";
+import { useState, useEffect } from "react";
+import { useChat } from "@/hooks/use-chat";
 import { FloatingChatButton } from "./floating-chat-button";
 import { ChatWindow } from "./chat-window";
 import { ChatError } from "./chat-error";
 
 interface ChatContainerProps {
-  sessionId: string;
   userId?: number;
-  initialMode?: ChatMode;
-  onSendMessage?: (message: string, mode: ChatMode) => void;
+  initialMode?: "normal" | "admin";
 }
 
 export function ChatContainer({
-  sessionId,
-  userId,
+  userId = 123456,
   initialMode = "normal",
-  onSendMessage,
 }: ChatContainerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentMode, setCurrentMode] = useState<ChatMode>(initialMode);
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSendMessage = useCallback(
-    (message: string) => {
-      if (!message.trim()) return;
+  // Use real chat hook
+  const {
+    sessionId,
+    messages,
+    currentMode,
+    isLoading,
+    error,
+    sendMessage,
+    switchMode,
+  } = useChat(userId, initialMode);
 
-      // Clear error on new message
-      setError(null);
-
-      // Add user message to UI
-      const userMessage: ChatMessageType = {
-        id: `msg-${Date.now()}`,
-        content: message,
-        role: "user",
-        mode: currentMode,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
-      setIsLoading(true);
-
-      // Call parent handler or API
-      if (onSendMessage) {
-        onSendMessage(message, currentMode);
-      }
-
-      // Simulate response (will be replaced with real API call)
-      setTimeout(() => {
-        const assistantMessage: ChatMessageType = {
-          id: `msg-${Date.now() + 1}`,
-          content: `Ответ на вопрос: "${message}"`,
-          role: "assistant",
-          mode: currentMode,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsLoading(false);
-      }, 1000);
-    },
-    [currentMode, onSendMessage]
-  );
-
-  const handleModeChange = (mode: ChatMode) => {
-    setCurrentMode(mode);
-    setError(null);
-    // Clear messages when changing mode as per requirements
-    setMessages([]);
+  const handleSendMessage = async (message: string) => {
+    await sendMessage(message);
   };
+
+  const handleModeChange = async (mode: "normal" | "admin") => {
+    await switchMode(mode);
+  };
+
+  // Only show if session is ready
+  if (!sessionId) {
+    return null;
+  }
 
   return (
     <>
@@ -86,9 +55,8 @@ export function ChatContainer({
         <div className="fixed bottom-24 right-6 w-96 h-[500px] z-40 rounded-lg overflow-hidden flex flex-col">
           <ChatError
             error={error}
-            onClose={() => setError(null)}
+            onClose={() => {}}
             onRetry={() => {
-              setError(null);
               if (messages.length > 0) {
                 const lastUserMessage = [...messages]
                   .reverse()
@@ -125,9 +93,8 @@ export function ChatContainer({
           </div>
           <ChatError
             error={error}
-            onClose={() => setError(null)}
+            onClose={() => {}}
             onRetry={() => {
-              setError(null);
               if (messages.length > 0) {
                 const lastUserMessage = [...messages]
                   .reverse()
