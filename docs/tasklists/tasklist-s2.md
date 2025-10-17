@@ -395,3 +395,4 @@ message.from_user.language_code = "en"
 **Следующий спринт:** TBD
 
 
+
