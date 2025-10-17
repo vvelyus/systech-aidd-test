@@ -12,7 +12,8 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { RecentDialogsTable } from "@/components/dashboard/recent-dialogs";
 import { QuickActionMenu } from "@/components/ui/quick-action-menu";
-import { ChatContainer } from "@/components/chat/chat-container";
+import { useChat } from "@/hooks/use-chat";
+import { ChatWindow } from "@/components/chat/chat-window";
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>("week");
@@ -20,6 +21,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Initialize chat
+  const userId = 123456;
+  const {
+    sessionId,
+    messages,
+    currentMode,
+    isLoading: chatLoading,
+    sendMessage,
+    switchMode,
+  } = useChat(userId);
 
   const loadData = useCallback(async () => {
     try {
@@ -53,6 +65,14 @@ export default function DashboardPage() {
   const handleNewReport = () => {
     console.log('📊 Создание нового отчета...');
     // TODO: Реализовать создание нового отчета
+  };
+
+  const handleSendMessage = async (message: string) => {
+    await sendMessage(message);
+  };
+
+  const handleModeChange = async (mode: "normal" | "admin") => {
+    await switchMode(mode);
   };
 
   if (error) {
@@ -172,18 +192,26 @@ export default function DashboardPage() {
           <RecentDialogsTable data={data.recent_dialogs} isLoading={loading} />
         </main>
 
+        {/* Chat Section */}
+        {sessionId && (
+          <div className="container mx-auto p-6 bg-gray-50 border-t">
+            <div className="rounded-lg overflow-hidden shadow-lg h-[400px]">
+              <ChatWindow
+                messages={messages}
+                isLoading={chatLoading}
+                currentMode={currentMode}
+                onSendMessage={handleSendMessage}
+                onModeChange={handleModeChange}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Quick Action Menu (Кнопка N) */}
         <QuickActionMenu
           onNewDialog={handleNewDialog}
           onNewGroup={handleNewGroup}
           onNewReport={handleNewReport}
-        />
-
-        {/* AI Chat */}
-        <ChatContainer
-          sessionId={`dashboard-${period}`}
-          userId={123456}
-          initialMode="normal"
         />
       </div>
     </div>
