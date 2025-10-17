@@ -40,7 +40,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
             onClick={() => onOpenChange?.(false)}
           >
             <MessageCircle className="h-5 w-5" />
-            <span>Чат</span>
+            <span>Chat</span>
           </Link>
         </nav>
       </SheetContent>
