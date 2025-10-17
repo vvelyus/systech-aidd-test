@@ -12,6 +12,7 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { RecentDialogsTable } from "@/components/dashboard/recent-dialogs";
 import { QuickActionMenu } from "@/components/ui/quick-action-menu";
+import { ChatContainer } from "@/components/chat/chat-container";
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>("week");
@@ -176,6 +177,13 @@ export default function DashboardPage() {
           onNewDialog={handleNewDialog}
           onNewGroup={handleNewGroup}
           onNewReport={handleNewReport}
+        />
+
+        {/* AI Chat */}
+        <ChatContainer
+          sessionId={`dashboard-${period}`}
+          userId={123456}
+          initialMode="normal"
         />
       </div>
     </div>

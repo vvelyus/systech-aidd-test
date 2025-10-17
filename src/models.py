@@ -143,3 +143,90 @@ class Message(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_deleted": self.is_deleted,
         }
+
+
+class ChatSession(Base):
+    """
+    Модель для хранения сессий чата.
+
+    Attributes:
+        id: Уникальный идентификатор сессии
+        user_id: ID пользователя (Telegram ID)
+        mode: Режим чата ('normal' или 'admin')
+        created_at: Дата и время создания сессии
+    """
+
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    mode: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+
+    def __repr__(self) -> str:
+        """Строковое представление модели для отладки."""
+        return (
+            f"<ChatSession(id='{self.id}', user_id={self.user_id}, "
+            f"mode='{self.mode}', created_at={self.created_at})>"
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Преобразование модели в словарь."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "mode": self.mode,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ChatMessage(Base):
+    """
+    Модель для хранения сообщений чата веб-интерфейса.
+
+    Attributes:
+        id: Уникальный идентификатор сообщения
+        user_session_id: ID сессии пользователя
+        content: Текст сообщения
+        role: Роль отправителя ('user' или 'assistant')
+        mode: Режим чата ('normal' или 'admin')
+        sql_query: SQL запрос (опционально, для админ-режима)
+        created_at: Дата и время создания
+    """
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_session_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    sql_query: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False, server_default=func.current_timestamp()
+    )
+
+    def __repr__(self) -> str:
+        """Строковое представление модели для отладки."""
+        content_preview = (
+            self.content[:50] + "..." if len(self.content) > 50 else self.content
+        )
+        return (
+            f"<ChatMessage(id='{self.id}', user_session_id='{self.user_session_id}', "
+            f"role='{self.role}', mode='{self.mode}', created_at={self.created_at}, "
+            f"content='{content_preview}')>"
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Преобразование модели в словарь."""
+        return {
+            "id": self.id,
+            "user_session_id": self.user_session_id,
+            "content": self.content,
+            "role": self.role,
+            "mode": self.mode,
+            "sql_query": self.sql_query,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

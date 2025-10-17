@@ -11,6 +11,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from src.messages import BotMessages
+from src.llm_client import RateLimitExceededError
 
 if TYPE_CHECKING:
     from src.database import DatabaseManager
@@ -238,6 +239,9 @@ class TelegramBot:
 
             await message.answer(response)
 
+        except RateLimitExceededError as e:
+            self.logger.warning(f"Rate limit exceeded for user_id={user_id}: {e}")
+            await message.answer(BotMessages.rate_limit_error())
         except Exception as e:
             # Обработка ошибок с дружественным сообщением
             self.logger.error(f"Error processing message: {e}", exc_info=True)

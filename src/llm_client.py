@@ -1,10 +1,26 @@
 """Клиент для работы с LLM через OpenRouter API."""
 
+import asyncio
 import logging
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError
 
 from src.context_storage import ContextStorage
+
+
+class RateLimitExceededError(Exception):
+    """Ошибка когда превышен лимит API (429)."""
+
+    def __init__(self, message: str, retry_after: int | None = None):
+        """
+        Initialize rate limit error.
+
+        Args:
+            message: Error message
+            retry_after: Seconds to wait before retry (if available)
+        """
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class LLMClient:
@@ -40,8 +56,89 @@ class LLMClient:
         self.system_prompt = system_prompt
         self.logger = logger
         self.context_storage = context_storage
+        self.max_retries = 5
+        self.base_delay = 1.0  # seconds
 
         self.logger.info(f"LLMClient initialized with model: {model}")
+
+    async def _api_call_with_retry(self, messages: list, max_retries: int = None) -> str:
+        """
+        Выполнить API запрос с retry при rate limit (429).
+
+        Args:
+            messages: Список сообщений для API
+            max_retries: Максимальное количество повторов
+
+        Returns:
+            str: Ответ от LLM
+
+        Raises:
+            RateLimitExceededError: При превышении лимита (429)
+            Exception: При других ошибках (не 429)
+        """
+        if max_retries is None:
+            max_retries = self.max_retries
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,  # type: ignore[arg-type]
+            )
+            answer = response.choices[0].message.content
+            if not answer:
+                raise ValueError("Empty response from LLM")
+            return answer
+
+        except RateLimitError as e:
+            error_str = str(e)
+
+            # Проверяем тип лимита
+            is_free_limit = "free-models-per-day" in error_str
+
+            # Если это free-limit ошибка - выбрасываем сразу, без retry
+            if is_free_limit:
+                error_msg = (
+                    f"Rate limit exceeded: free-models-per-day. "
+                    f"Add credits or wait until tomorrow (00:00 UTC). "
+                    f"Error: {error_str[:150]}"
+                )
+                self.logger.error(error_msg)
+                raise RateLimitExceededError(error_msg)
+
+            # Для других типов лимитов используем retry с backoff
+            for attempt in range(max_retries + 1):
+                try:
+                    response = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,  # type: ignore[arg-type]
+                    )
+                    answer = response.choices[0].message.content
+                    if not answer:
+                        raise ValueError("Empty response from LLM")
+                    return answer
+
+                except RateLimitError as retry_error:
+                    if attempt < max_retries:
+                        delay = self.base_delay * (2 ** attempt)  # Exponential backoff
+                        self.logger.warning(
+                            f"Rate limit hit (429). "
+                            f"Retry {attempt + 1}/{max_retries} after {delay}s. "
+                            f"Error: {str(retry_error)[:200]}"
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        error_msg = (
+                            f"Rate limit exceeded after {max_retries} retries. "
+                            f"Error: {str(retry_error)[:150]}"
+                        )
+                        self.logger.error(error_msg)
+                        raise RateLimitExceededError(error_msg)
+
+        except RateLimitExceededError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error calling LLM API: {e}", exc_info=True)
+            raise
 
     async def get_response(self, user_message: str) -> str:
         """
@@ -57,7 +154,8 @@ class LLMClient:
             str: Ответ от LLM
 
         Raises:
-            Exception: При ошибках API
+            RateLimitExceededError: При превышении лимита (429)
+            Exception: При других ошибках API
         """
         try:
             # Формируем запрос
@@ -70,22 +168,15 @@ class LLMClient:
                 f"Sending request to LLM: model={self.model}, message_length={len(user_message)}"
             )
 
-            # Вызов API
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,  # type: ignore[arg-type]
-            )
-
-            # Извлекаем ответ
-            answer = response.choices[0].message.content
-            if not answer:
-                raise ValueError("Empty response from LLM")
+            answer = await self._api_call_with_retry(messages)
             self.logger.info(f"Received response from LLM: length={len(answer)}")
-
             return answer
 
+        except RateLimitExceededError as e:
+            self.logger.error(f"Rate limit in get_response: {e}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error calling LLM API: {e}", exc_info=True)
+            self.logger.error(f"Error in get_response: {e}", exc_info=True)
             raise
 
     async def get_response_with_context(self, user_id: int, user_message: str) -> str:
@@ -104,7 +195,8 @@ class LLMClient:
             str: Ответ от LLM
 
         Raises:
-            Exception: При ошибках API
+            RateLimitExceededError: При превышении лимита (429)
+            Exception: При других ошибках API
         """
         try:
             # Добавляем сообщение пользователя в контекст
@@ -124,22 +216,15 @@ class LLMClient:
                 f"model={self.model}, context_length={len(context)}"
             )
 
-            # Вызов API
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,  # type: ignore[arg-type]
-            )
-
-            # Извлекаем и сохраняем ответ в контекст
-            answer = response.choices[0].message.content
-            if not answer:
-                raise ValueError("Empty response from LLM")
+            answer = await self._api_call_with_retry(messages)
             await self.context_storage.add_message(user_id, "assistant", answer)
 
             self.logger.info(f"Received response from LLM: user_id={user_id}, length={len(answer)}")
-
             return answer
 
+        except RateLimitExceededError as e:
+            self.logger.error(f"Rate limit in get_response_with_context: {e}")
+            raise
         except Exception as e:
             self.logger.error(
                 f"Error calling LLM API with context for user_id={user_id}: {e}",

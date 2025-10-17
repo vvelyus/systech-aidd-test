@@ -2,10 +2,18 @@
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 from src.api.mock_stats import MockStatCollector
 from src.api.models import Period, StatsResponse
 from src.api.stats import StatCollector
+from src.api import chat
+from src.api.chat_service import ChatService
+from src.api.real_stats import RealStatCollector
+from src.database import DatabaseManager
+from src.llm_client import LLMClient
+from src.logger import setup_logger
+from src.config import Config
 
 # Создание FastAPI приложения
 app = FastAPI(
@@ -25,12 +33,77 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global services
+_logger: logging.Logger | None = None
+_db_manager: DatabaseManager | None = None
+_llm_client: LLMClient | None = None
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    """Initialize services on startup."""
+    global _logger, _db_manager, _llm_client
+
+    try:
+        # Load config
+        config = Config.from_env()
+
+        # Setup logger
+        _logger = setup_logger(config.log_file_path, config.log_level)
+        _logger.info("Initializing API services...")
+
+        # Initialize database
+        _db_manager = DatabaseManager(database_url=config.database_url, logger=_logger)
+        await _db_manager.init_db()
+
+        # Load system prompt
+        try:
+            system_prompt = config.load_system_prompt()
+        except Exception:
+            system_prompt = config.system_prompt
+
+        # Initialize LLM client
+        _llm_client = LLMClient(
+            api_key=config.openrouter_api_key,
+            model=config.openrouter_model,
+            base_url=config.openrouter_base_url,
+            system_prompt=system_prompt,
+            logger=_logger,
+            context_storage=None,
+        )
+
+        # Initialize ChatService
+        chat_service = ChatService(
+            llm_client=_llm_client,
+            db_manager=_db_manager,
+            logger=_logger,
+            request_timeout=60.0,  # Increased from 30s
+            text2sql_timeout=15.0,  # Increased from 5s
+        )
+
+        # Register chat service
+        chat.set_chat_service(chat_service, _logger)
+
+        _logger.info("API services initialized successfully")
+    except Exception as e:
+        if _logger:
+            _logger.error(f"Failed to initialize services: {e}", exc_info=True)
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    """Cleanup on shutdown."""
+    if _db_manager:
+        await _db_manager.close()
+    if _logger:
+        _logger.info("API services shutdown complete")
+
 
 # Dependency Injection для StatCollector
-# В будущем здесь можно переключаться между Mock и Real
 def get_stat_collector() -> StatCollector:
     """Возвращает текущую реализацию StatCollector."""
-    return MockStatCollector()
+    return RealStatCollector(_db_manager)
 
 
 @app.get("/")
@@ -54,3 +127,6 @@ async def get_stats(
     """
     collector = get_stat_collector()
     return await collector.get_stats(period)
+
+# Подключение chat endpoints
+app.include_router(chat.router)

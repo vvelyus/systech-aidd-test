@@ -1,199 +1,452 @@
-# Stats API Contract
+# Chat System API Contract
 
-## Базовая информация
+**Version:** 1.0.0
+**Status:** Production Ready
+**Base URL:** `http://localhost:8000` (development) | `/api` (production)
 
-- **Базовый URL:** `http://localhost:8000`
-- **Версия:** 1.0.0
-- **Формат:** JSON
-- **Документация:**
-  - Swagger UI: http://localhost:8000/docs
-  - ReDoc: http://localhost:8000/redoc
-  - OpenAPI Schema: http://localhost:8000/openapi.json
+---
+
+## Overview
+
+Complete API specification for the AI Chat System with streaming support, Text-to-SQL queries, and session management.
+
+---
+
+## Authentication
+
+Currently no authentication required for development. In production:
+- JWT bearer token required in `Authorization` header
+- Session tokens managed via cookies
+
+---
+
+## Error Handling
+
+All endpoints return errors in this format:
+
+```json
+{
+  "detail": "Error description",
+  "error_code": "ERROR_CODE",
+  "timestamp": "2025-10-17T12:30:45Z"
+}
+```
+
+### Common HTTP Status Codes
+- `200 OK` - Success
+- `400 Bad Request` - Invalid parameters
+- `422 Unprocessable Entity` - Validation error
+- `500 Internal Server Error` - Server error
+- `504 Gateway Timeout` - LLM/DB timeout
+
+---
 
 ## Endpoints
 
-### Health Check
+### 1. Send Chat Message (Streaming)
 
-**GET /**
+**Endpoint:** `POST /api/chat/message`
+**Authentication:** Required
+**Stream:** Yes (Server-Sent Events)
 
-Проверка доступности API.
+#### Request
 
-**Ответ:**
 ```json
 {
-  "status": "ok",
-  "message": "Stats API is running"
+  "session_id": "string (required)",
+  "message": "string (required, max 5000 chars)",
+  "mode": "normal | admin (default: normal)"
+}
+```
+
+#### Response - Streaming
+
+Server sends chunks as Server-Sent Events (SSE):
+
+```
+data: {"chunk": "Hello"}
+data: {"chunk": " "}
+data: {"chunk": "world"}
+data: {"status": "complete"}
+```
+
+#### Examples
+
+**Normal Mode (LLM Assistant):**
+```bash
+curl -X POST http://localhost:8000/api/chat/message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "sess_abc123",
+    "message": "What is Python?",
+    "mode": "normal"
+  }'
+```
+
+**Admin Mode (Text-to-SQL):**
+```bash
+curl -X POST http://localhost:8000/api/chat/message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "sess_abc123",
+    "message": "How many active users?",
+    "mode": "admin"
+  }'
+```
+
+#### Performance Targets
+- Response time: < 3 seconds
+- First chunk: < 1 second
+- Chunk interval: < 100ms
+
+---
+
+### 2. Get Chat History
+
+**Endpoint:** `GET /api/chat/history`
+**Authentication:** Required
+**Pagination:** Yes
+
+#### Query Parameters
+
+| Parameter | Type | Default | Max | Description |
+|-----------|------|---------|-----|-------------|
+| session_id | string | required | - | Session ID |
+| limit | integer | 50 | 200 | Number of messages |
+| offset | integer | 0 | - | Pagination offset |
+
+#### Response
+
+```json
+{
+  "items": [
+    {
+      "id": "msg_123",
+      "session_id": "sess_abc123",
+      "role": "user",
+      "content": "What is Python?",
+      "created_at": "2025-10-17T12:30:45Z"
+    },
+    {
+      "id": "msg_124",
+      "session_id": "sess_abc123",
+      "role": "assistant",
+      "content": "Python is a programming language...",
+      "created_at": "2025-10-17T12:30:50Z"
+    }
+  ],
+  "total": 42,
+  "limit": 50,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+#### Example
+
+```bash
+curl "http://localhost:8000/api/chat/history?session_id=sess_abc123&limit=50&offset=0"
+```
+
+---
+
+### 3. Create Chat Session
+
+**Endpoint:** `POST /api/chat/session`
+**Authentication:** Required
+
+#### Request
+
+```json
+{
+  "user_id": "string (required)"
+}
+```
+
+#### Response
+
+```json
+{
+  "session_id": "sess_abc123",
+  "user_id": "user_456",
+  "created_at": "2025-10-17T12:30:45Z",
+  "mode": "normal"
+}
+```
+
+#### Example
+
+```bash
+curl -X POST http://localhost:8000/api/chat/session \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user_456"}'
+```
+
+---
+
+### 4. Debug SQL Query
+
+**Endpoint:** `POST /api/chat/debug/sql`
+**Authentication:** Required (Admin only)
+
+#### Request
+
+```json
+{
+  "question": "string (required)",
+  "session_id": "string (optional)"
+}
+```
+
+#### Response
+
+```json
+{
+  "question": "How many users?",
+  "sql": "SELECT COUNT(*) FROM users",
+  "explanation": "Counting total users in the database",
+  "results": "| count |\n|-------|\n| 42    |",
+  "execution_time_ms": 123
+}
+```
+
+#### Example
+
+```bash
+curl -X POST http://localhost:8000/api/chat/debug/sql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "How many active users?"
+  }'
+```
+
+---
+
+## Rate Limiting
+
+| Endpoint | Rate Limit | Window |
+|----------|-----------|--------|
+| /api/chat/message | 100 req/min | Per user |
+| /api/chat/history | 1000 req/min | Per user |
+| /api/chat/session | 10 req/min | Per user |
+| /api/chat/debug/sql | 50 req/min | Per user |
+
+**Response Header:** `X-RateLimit-Remaining`
+
+---
+
+## Caching Behavior
+
+### Text-to-SQL Query Cache
+- **TTL:** 1 hour
+- **Key:** SHA256(question)
+- **Scope:** Per system
+- **Headers:** `Cache-Control: private, max-age=3600`
+
+### History Cache
+- **TTL:** 5 minutes
+- **Key:** `{session_id}:{offset}:{limit}`
+- **Scope:** Per session
+
+### Disable Cache
+```bash
+# Add header to bypass cache
+-H "Cache-Control: no-cache"
+```
+
+---
+
+## Timeout Behavior
+
+### Request Timeouts
+- **LLM request:** 30 seconds
+- **Text-to-SQL conversion:** 5 seconds
+- **SQL execution:** 5 seconds
+
+### Timeout Response
+```json
+{
+  "detail": "Request timeout after 30s. Try a simpler question.",
+  "error_code": "REQUEST_TIMEOUT",
+  "retry_after": 5
 }
 ```
 
 ---
 
-### Получение статистики
+## Streaming Response Format
 
-**GET /stats**
+### Server-Sent Events (SSE)
 
-Получить статистику диалогов за указанный период.
+```
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
 
-**Параметры запроса:**
-
-| Параметр | Тип | Обязательный | По умолчанию | Описание |
-|----------|-----|--------------|--------------|----------|
-| `period` | string (enum) | Нет | `week` | Период для статистики: `day`, `week`, `month` |
-
-**Примеры запросов:**
-
-```bash
-# Статистика за неделю (по умолчанию)
-curl http://localhost:8000/stats
-
-# Статистика за день
-curl http://localhost:8000/stats?period=day
-
-# Статистика за месяц
-curl http://localhost:8000/stats?period=month
+data: {"chunk": "Hello"}
+data: {"chunk": " "}
+data: {"chunk": "world"}
+data: {"status": "complete"}
+data: {"session_id": "sess_abc123"}
 ```
 
-**Структура ответа:**
+### Client-Side Parsing (JavaScript)
 
-```json
-{
-  "summary": {
-    "total_messages": 1250,
-    "total_messages_change": 12.5,
-    "active_users": 45,
-    "active_users_change": -5.2,
-    "avg_dialog_length": 8.3,
-    "avg_dialog_length_change": 3.1,
-    "messages_per_day": 125.0,
-    "messages_per_day_change": 15.8
-  },
-  "activity_timeline": [
-    {
-      "date": "2025-10-10",
-      "user_messages": 65,
-      "bot_messages": 58,
-      "total": 123
-    },
-    {
-      "date": "2025-10-11",
-      "user_messages": 72,
-      "bot_messages": 68,
-      "total": 140
-    }
-  ],
-  "top_users": [
-    {
-      "user_id": 100001,
-      "username": "user1",
-      "first_name": "Иван",
-      "message_count": 150,
-      "last_activity": "2025-10-17T10:30:00"
-    },
-    {
-      "user_id": 100002,
-      "username": null,
-      "first_name": "Петр",
-      "message_count": 142,
-      "last_activity": "2025-10-17T09:15:00"
-    }
-  ],
-  "recent_dialogs": [
-    {
-      "user_id": 200001,
-      "username": "user1",
-      "first_name": "Петр",
-      "last_message": "Привет! Как дела?",
-      "message_count": 12,
-      "last_activity": "2025-10-17T10:30:00"
-    },
-    {
-      "user_id": 200002,
-      "username": null,
-      "first_name": "Сергей",
-      "last_message": "Спасибо за помощь",
-      "message_count": 8,
-      "last_activity": "2025-10-17T10:15:00"
-    }
-  ]
+```javascript
+const eventSource = new EventSource(
+  '/api/chat/message?session_id=sess_abc123&message=Hello&mode=normal'
+);
+
+let response = '';
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.chunk) {
+    response += data.chunk;
+    console.log(response);
+  }
+
+  if (data.status === 'complete') {
+    eventSource.close();
+    console.log('Response complete:', response);
+  }
+};
+
+eventSource.onerror = (error) => {
+  console.error('Stream error:', error);
+  eventSource.close();
+};
+```
+
+---
+
+## Data Models
+
+### ChatMessage
+
+```typescript
+interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: ISO8601DateTime;
+  updated_at?: ISO8601DateTime;
 }
 ```
 
-## Модели данных
+### ChatSession
 
-### SummaryStats
+```typescript
+interface ChatSession {
+  session_id: string;
+  user_id: string;
+  mode: 'normal' | 'admin';
+  created_at: ISO8601DateTime;
+  last_activity: ISO8601DateTime;
+}
+```
 
-Общая статистика для карточек дашборда.
+### TextToSqlResponse
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `total_messages` | integer | Всего сообщений |
-| `total_messages_change` | float | Изменение в % относительно предыдущего периода |
-| `active_users` | integer | Активные пользователи |
-| `active_users_change` | float | Изменение в % |
-| `avg_dialog_length` | float | Средняя длина диалога (сообщений) |
-| `avg_dialog_length_change` | float | Изменение в % |
-| `messages_per_day` | float | Среднее сообщений в день |
-| `messages_per_day_change` | float | Изменение в % |
+```typescript
+interface TextToSqlResponse {
+  question: string;
+  sql: string;
+  explanation: string;
+  results?: string;
+  execution_time_ms: number;
+}
+```
 
-### TimelinePoint
+---
 
-Точка на временной шкале активности.
+## Mode Specification
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `date` | string | Дата в формате ISO (YYYY-MM-DD) |
-| `user_messages` | integer | Количество сообщений от пользователей |
-| `bot_messages` | integer | Количество сообщений от бота |
-| `total` | integer | Общее количество сообщений |
+### Normal Mode (LLM Assistant)
+- **Purpose:** General conversation with AI
+- **Temperature:** 0.7 (more creative)
+- **System Prompt:** Helpful assistant
+- **Supports:** Any question/topic
 
-### UserActivity
+### Admin Mode (Analytics)
+- **Purpose:** SQL queries + data analysis
+- **Temperature:** 0.3 (more precise)
+- **System Prompt:** SQL expert
+- **Supports:** Data-related questions
+- **Requires:** Admin permissions
 
-Информация об активности пользователя.
+---
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `user_id` | integer | ID пользователя |
-| `username` | string\|null | Username пользователя (может отсутствовать) |
-| `first_name` | string\|null | Имя пользователя |
-| `message_count` | integer | Количество сообщений |
-| `last_activity` | string | Последняя активность (ISO datetime) |
+## Examples by Language
 
-### DialogPreview
+### Python (requests)
 
-Превью диалога.
+```python
+import requests
+import json
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `user_id` | integer | ID пользователя |
-| `username` | string\|null | Username пользователя (может отсутствовать) |
-| `first_name` | string\|null | Имя пользователя |
-| `last_message` | string | Превью последнего сообщения |
-| `message_count` | integer | Количество сообщений в диалоге |
-| `last_activity` | string | Последняя активность (ISO datetime) |
+def send_chat_message(session_id, message, mode='normal'):
+    url = 'http://localhost:8000/api/chat/message'
+    payload = {
+        'session_id': session_id,
+        'message': message,
+        'mode': mode
+    }
 
-## Коды ответов
+    with requests.post(url, json=payload, stream=True) as response:
+        for line in response.iter_lines():
+            if line:
+                data = json.loads(line.decode('utf-8').replace('data: ', ''))
+                if 'chunk' in data:
+                    print(data['chunk'], end='', flush=True)
+```
 
-| Код | Описание |
-|-----|----------|
-| 200 | Успешный запрос |
-| 422 | Ошибка валидации параметров |
-| 500 | Внутренняя ошибка сервера |
+### JavaScript (fetch)
 
-## CORS
+```javascript
+async function sendChatMessage(sessionId, message, mode = 'normal') {
+  const response = await fetch('/api/chat/message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId, message, mode })
+  });
 
-API настроен для приема запросов с любых доменов (в production следует ограничить).
+  const reader = response.body.getReader();
 
-## Особенности текущей версии
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-- **Mock данные:** Текущая версия использует MockStatCollector, генерирующий случайные тестовые данные
-- **Независимость:** API работает независимо от основного Telegram бота
-- **Автогенерация документации:** OpenAPI схема генерируется автоматически из Pydantic моделей
+    const text = new TextDecoder().decode(value);
+    const data = JSON.parse(text.replace('data: ', ''));
+    if (data.chunk) console.log(data.chunk);
+  }
+}
+```
 
-## Переход на реальные данные
+---
 
-В будущей версии (спринт F5) Mock реализация будет заменена на Real реализацию с получением данных из базы данных. Контракт API при этом останется неизменным.
+## Versioning
 
-## Связанные документы
+Current version: **1.0.0**
 
-- [API Examples](api-examples.md) - Практические примеры использования
-- [Frontend Roadmap](frontend-roadmap.md) - План развития frontend
+### Backwards Compatibility
+- All changes will be backwards compatible
+- Deprecated endpoints will have `X-Deprecated` header
+- Migration period: 6 months
+
+---
+
+## Support & Documentation
+
+- **Interactive Docs:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+- **GitHub Issues:** Report bugs and feature requests
+
+---
+
+**Last Updated:** 2025-10-17
+**Status:** ✅ Production Ready
