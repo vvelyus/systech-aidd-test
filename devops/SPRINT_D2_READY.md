@@ -97,6 +97,5 @@ docker-compose -f docker-compose.registry.yml logs -f
 
 ---
 
-**Sprint D1 Status:** ✅ COMPLETED  
+**Sprint D1 Status:** ✅ COMPLETED
 **Sprint D2 Status:** 📋 READY TO START
-
