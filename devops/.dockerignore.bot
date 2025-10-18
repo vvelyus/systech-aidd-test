@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Git и env
+.git/
+.gitignore
+.env
+*.env.local
+.env.example
+
+# Logs и данные
+*.log
+logs/
+test_logs/
+data/
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+
+# Тесты и документация
+tests/
+docs/
+*.md
+README.md
+
+# Frontend
+frontend/
+node_modules/
+
+# DevOps
+devops/
+docker-compose.yml
+Dockerfile
+
+# Other
+.dockerignore
+Makefile

@@ -1,0 +1,39 @@
+# Node.js
+node_modules/
+.next/
+.next.config.js.swp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Git и env
+.git/
+.gitignore
+.env
+.env.local
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+
+# Тесты и документация
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+**/__tests__/
+coverage/
+.eslintcache
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Misc
+*.md
+README.md
+.DS_Store
+*.pem

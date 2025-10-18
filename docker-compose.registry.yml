@@ -1,27 +1,18 @@
-# Docker Compose конфигурация для всех сервисов
-# Sprint D0: Basic Docker Setup
+# Docker Compose конфигурация для использования образов из GitHub Container Registry
+# Sprint D1: Build & Publish
 #
-# Режимы работы:
-#
-# Режим 1 (по умолчанию): Локальная сборка образов
-#   docker-compose up -d
-#   - Собирает образы из Dockerfile
-#   - Подходит для разработки и отладки
-#   - Изменения кода применяются при пересборке
-#
-# Режим 2: Использование готовых образов из GitHub Container Registry
+# Использование:
 #   docker-compose -f docker-compose.registry.yml up -d
-#   - Использует pre-built образы из ghcr.io
-#   - Быстрый запуск (без сборки)
-#   - Подходит для production и тестирования CI образов
-#   - См. docker-compose.registry.yml
+#
+# Примечание:
+#   - Образы должны быть публичными (public access в GitHub Packages)
+#   - Для приватных образов требуется: docker login ghcr.io
+#   - Замените 'username' на ваш GitHub username
 
 services:
   # Telegram Bot - обработка сообщений
   bot:
-    build:
-      context: .
-      dockerfile: devops/Dockerfile.bot
+    image: ghcr.io/username/systech-aidd-test/bot:latest
     container_name: systech-aidd-bot
     restart: unless-stopped
     env_file:
@@ -43,9 +34,7 @@ services:
 
   # API Server - статистика и аналитика
   api:
-    build:
-      context: .
-      dockerfile: devops/Dockerfile.api
+    image: ghcr.io/username/systech-aidd-test/api:latest
     container_name: systech-aidd-api
     restart: unless-stopped
     env_file:
@@ -67,10 +56,7 @@ services:
 
   # Frontend - веб-интерфейс
   frontend:
-    build:
-      context: ./frontend/web
-      dockerfile: ../../devops/Dockerfile.frontend
-      # .dockerignore находится в context directory (frontend/web/)
+    image: ghcr.io/username/systech-aidd-test/frontend:latest
     container_name: systech-aidd-frontend
     restart: unless-stopped
     environment:

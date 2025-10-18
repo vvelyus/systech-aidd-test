@@ -1,0 +1,27 @@
+# Dockerfile для Telegram бота
+# Sprint D0: Basic Docker Setup (MVP)
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Установка UV для управления зависимостями
+RUN pip install --no-cache-dir uv
+
+# Копирование файлов зависимостей
+COPY pyproject.toml uv.lock ./
+
+# Установка зависимостей (без dev зависимостей)
+RUN uv sync --no-dev
+
+# Копирование исходного кода
+COPY src/ ./src/
+COPY prompts/ ./prompts/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+
+# Создание директорий для данных и логов
+RUN mkdir -p data logs
+
+# Применение миграций БД и запуск бота
+CMD uv run alembic upgrade head && uv run python src/main.py

@@ -1,10 +1,89 @@
 # systech-aidd-test
 
+![Build Status](https://github.com/username/systech-aidd-test/workflows/Build%20and%20Publish%20Docker%20Images/badge.svg)
+
 AI-driven Telegram бот для тестирования интеграции с LLM через OpenRouter API.
 
 ## Описание
 
 Простой MVP Telegram бота с поддержкой общения через различные LLM модели. Проект следует принципам KISS и создан для быстрой проверки концепции.
+
+## 🐳 Docker Images
+
+Все сервисы доступны как готовые Docker образы в GitHub Container Registry:
+
+**Доступные образы:**
+- 🤖 **Bot**: `ghcr.io/username/systech-aidd-test/bot:latest`
+- 🚀 **API**: `ghcr.io/username/systech-aidd-test/api:latest`
+- 🎨 **Frontend**: `ghcr.io/username/systech-aidd-test/frontend:latest`
+
+**Теги:**
+- `latest` - последняя версия из main ветки
+- `<commit-sha>` - конкретный коммит (например, `abc1234`)
+
+**Pull образы:**
+```bash
+docker pull ghcr.io/username/systech-aidd-test/bot:latest
+docker pull ghcr.io/username/systech-aidd-test/api:latest
+docker pull ghcr.io/username/systech-aidd-test/frontend:latest
+```
+
+**Запуск из готовых образов:**
+```bash
+docker-compose -f docker-compose.registry.yml up -d
+```
+
+---
+
+## 🚀 Quick Start (Docker)
+
+**Самый быстрый способ запустить все сервисы:**
+
+```bash
+# 1. Создайте .env на основе .env.example
+cp .env.example .env
+
+# 2. Укажите ваши токены в .env
+# TELEGRAM_BOT_TOKEN=...
+# OPENROUTER_API_KEY=...
+
+# 3. Запустите все сервисы одной командой
+docker-compose up -d
+```
+
+**Готово!** Сервисы доступны:
+- 🤖 **Bot** - работает в Telegram
+- 🚀 **API** - http://localhost:8000/docs
+- 🎨 **Frontend** - http://localhost:3000
+
+<details>
+<summary>📖 Подробнее о Docker setup</summary>
+
+### Управление сервисами
+
+```bash
+# Просмотр логов
+docker-compose logs -f
+
+# Остановка
+docker-compose down
+
+# Перезапуск
+docker-compose restart
+
+# Статус
+docker-compose ps
+```
+
+### Troubleshooting
+
+- **Порты заняты?** Измените порты в `docker-compose.yml`
+- **Не работает?** Проверьте логи: `docker-compose logs`
+- **Нужна помощь?** См. [Docker Setup](#-docker-setup) ниже
+
+</details>
+
+---
 
 ## Технологии
 
@@ -108,23 +187,96 @@ make run
 uv run python src/main.py
 ```
 
-#### В Docker (рекомендуется для production)
+Бот запустится в режиме polling и начнет обрабатывать сообщения.
+
+---
+
+## 🐳 Docker Setup
+
+### Требования
+
+- Docker Desktop (Windows/Mac) или Docker Engine (Linux)
+- Docker Compose v2.0+
+
+### Запуск через Docker
+
+**1. Настройка переменных окружения**
+
+Создайте файл `.env` на основе `.env.example`:
 
 ```bash
-# Собрать образ
-make docker-build
-
-# Запустить контейнер в фоне
-make docker-up
-
-# Просмотреть логи
-make docker-logs
-
-# Остановить контейнер
-make docker-down
+cp .env.example .env
 ```
 
-Бот запустится в режиме polling и начнет обрабатывать сообщения.
+Отредактируйте `.env` и укажите ваши токены.
+
+**2. Запуск всех сервисов**
+
+```bash
+docker-compose up
+```
+
+Или в фоновом режиме:
+
+```bash
+docker-compose up -d
+```
+
+**3. Проверка работы**
+
+- **Bot**: проверьте работу в Telegram
+- **API**: http://localhost:8000/docs (Swagger документация)
+- **Frontend**: http://localhost:3000 (веб-интерфейс)
+
+### Команды управления
+
+```bash
+# Просмотр логов всех сервисов
+docker-compose logs -f
+
+# Просмотр логов конкретного сервиса
+docker-compose logs -f bot
+docker-compose logs -f api
+docker-compose logs -f frontend
+
+# Остановка всех сервисов
+docker-compose down
+
+# Пересборка образов
+docker-compose build
+
+# Пересборка без кеша
+docker-compose build --no-cache
+
+# Просмотр статуса
+docker-compose ps
+```
+
+### Troubleshooting
+
+**Проблема:** Порты 8000 или 3000 уже заняты
+
+Решение: Измените порты в `docker-compose.yml`:
+```yaml
+ports:
+  - "8001:8000"  # API
+  - "3001:3000"  # Frontend
+```
+
+**Проблема:** Ошибка подключения к БД
+
+Решение: Проверьте, что директория `./data` существует и имеет права на запись.
+
+**Проблема:** Frontend не подключается к API
+
+Решение: Проверьте переменную `NEXT_PUBLIC_API_URL` в `docker-compose.yml`.
+
+**Проблема:** Миграции не применились
+
+Решение: Проверьте логи и запустите миграции вручную:
+```bash
+docker-compose exec bot uv run alembic upgrade head
+```
 
 ---
 
