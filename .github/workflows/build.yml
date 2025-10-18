@@ -50,7 +50,7 @@ jobs:
 
           if [ "$SERVICE" = "frontend" ]; then
             echo "context=./frontend/web" >> $GITHUB_OUTPUT
-            echo "dockerfile=devops/Dockerfile.frontend" >> $GITHUB_OUTPUT
+            echo "dockerfile=../../devops/Dockerfile.frontend" >> $GITHUB_OUTPUT
           else
             echo "context=." >> $GITHUB_OUTPUT
             echo "dockerfile=devops/Dockerfile.$SERVICE" >> $GITHUB_OUTPUT
