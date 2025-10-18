@@ -2,8 +2,6 @@
 
 ![Build Status](https://github.com/username/systech-aidd-test/workflows/Build%20and%20Publish%20Docker%20Images/badge.svg)
 
-> 🧪 **Testing PR Workflow** - This line tests Pull Request CI/CD pipeline
-
 AI-driven Telegram бот для тестирования интеграции с LLM через OpenRouter API.
 
 ## Описание
