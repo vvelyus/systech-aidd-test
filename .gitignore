@@ -42,7 +42,7 @@ logs/
 
 # uv
 .uv/
-uv.lock
+# uv.lock should be in git for reproducible builds
 
 # Testing
 .coverage
