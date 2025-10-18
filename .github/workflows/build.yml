@@ -48,9 +48,15 @@ jobs:
         run: |
           SERVICE="${{ matrix.service }}"
 
-          # Use root context for all services for consistent path resolution
-          echo "context=." >> $GITHUB_OUTPUT
-          echo "dockerfile=devops/Dockerfile.$SERVICE" >> $GITHUB_OUTPUT
+          if [ "$SERVICE" = "frontend" ]; then
+            # Frontend uses its own directory as context to avoid root .dockerignore
+            echo "context=./frontend/web" >> $GITHUB_OUTPUT
+            echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
+          else
+            # Bot and API use root context
+            echo "context=." >> $GITHUB_OUTPUT
+            echo "dockerfile=devops/Dockerfile.$SERVICE" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5

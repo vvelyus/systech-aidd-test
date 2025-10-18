@@ -48,8 +48,8 @@ services:
   # Frontend - ЛОКАЛЬНАЯ СБОРКА (временно)
   frontend:
     build:
-      context: .
-      dockerfile: devops/Dockerfile.frontend
+      context: ./frontend/web
+      dockerfile: Dockerfile
     container_name: systech-aidd-frontend-prod
     restart: always
     environment:

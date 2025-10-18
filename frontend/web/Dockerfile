@@ -1,0 +1,68 @@
+# Dockerfile для Frontend
+# Sprint D2: Production-Ready Build
+
+FROM node:20-slim AS base
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# ===========================================
+# Stage 1: Dependencies
+# ===========================================
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy package files (context is frontend/web)
+COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# ===========================================
+# Stage 2: Builder
+# ===========================================
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy all source files (context is frontend/web)
+COPY . ./
+
+# Build Next.js application
+# This creates the .next folder with optimized production build
+RUN pnpm build
+
+# ===========================================
+# Stage 3: Runner (Production)
+# ===========================================
+FROM base AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Create a non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy necessary files for running Next.js
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Set correct permissions
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Start Next.js production server
+CMD ["node", "server.js"]
