@@ -43,6 +43,23 @@ class Text2SqlConverter:
     );
     """
 
+    # SQLite specific date function examples for the LLM
+    SQLITE_DATE_EXAMPLES = """
+    -- SQLite Date Functions for Queries:
+    -- Current week (ISO week starting Monday):
+    --   WHERE strftime('%W', created_at) = strftime('%W', 'now')
+    --     AND strftime('%Y', created_at) = strftime('%Y', 'now')
+    -- Current month:
+    --   WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+    -- Last 7 days:
+    --   WHERE created_at >= datetime('now', '-7 days')
+    -- Today:
+    --   WHERE date(created_at) = date('now')
+    -- Specific week range:
+    --   WHERE date(created_at) >= date('now', 'start of week')
+    --     AND date(created_at) < date('now', 'start of week', '+7 days')
+    """
+
     def __init__(
         self,
         llm_client: "LLMClient",
@@ -135,6 +152,49 @@ class Text2SqlConverter:
         except Exception as e:
             return False, f"SQL validation error: {str(e)}"
 
+    def _convert_mysql_to_sqlite(self, sql: str) -> str:
+        """
+        Convert MySQL specific functions to SQLite equivalents.
+
+        This is a safety measure in case the LLM generates MySQL SQL despite instructions.
+
+        Args:
+            sql: SQL query that may contain MySQL functions
+
+        Returns:
+            SQL query with MySQL functions converted to SQLite equivalents
+        """
+        import re
+
+        # Replace CURDATE() with date('now')
+        sql = re.sub(r'\bCURDATE\(\)', "date('now')", sql, flags=re.IGNORECASE)
+
+        # Replace NOW() with datetime('now')
+        sql = re.sub(r'\bNOW\(\)', "datetime('now')", sql, flags=re.IGNORECASE)
+
+        # Replace YEARWEEK(..., 1) with strftime('%W', ...) AND strftime('%Y', ...)
+        # This is a simplified conversion - may need context-specific fixes
+        sql = re.sub(
+            r'YEARWEEK\s*\(\s*([^,]+)\s*,\s*\d+\s*\)',
+            r"(strftime('%W', \1) || strftime('%Y', \1))",
+            sql,
+            flags=re.IGNORECASE
+        )
+
+        # Replace YEAR(...) with strftime('%Y', ...)
+        sql = re.sub(r'\bYEAR\s*\(\s*([^)]+)\s*\)', r"strftime('%Y', \1)", sql, flags=re.IGNORECASE)
+
+        # Replace MONTH(...) with strftime('%m', ...)
+        sql = re.sub(r'\bMONTH\s*\(\s*([^)]+)\s*\)', r"strftime('%m', \1)", sql, flags=re.IGNORECASE)
+
+        # Replace DAY(...) with strftime('%d', ...)
+        sql = re.sub(r'\bDAY\s*\(\s*([^)]+)\s*\)', r"strftime('%d', \1)", sql, flags=re.IGNORECASE)
+
+        # Replace WEEK(...) with strftime('%W', ...)
+        sql = re.sub(r'\bWEEK\s*\(\s*([^,)]+)(?:\s*,\s*\d+)?\s*\)', r"strftime('%W', \1)", sql, flags=re.IGNORECASE)
+
+        return sql
+
     async def convert(
         self,
         question: str,
@@ -164,9 +224,30 @@ class Text2SqlConverter:
         # Try to generate SQL with retries
         for attempt in range(max_retries):
             try:
-                system_prompt = f"""You are a SQL expert. Convert the natural language question to a SQL query.
-Use this database schema:
+                system_prompt = f"""You are a SQL expert for SQLite database. Convert the natural language question to a SQLite query.
+
+IMPORTANT: This is an SQLite database, NOT MySQL. Use SQLite functions only.
+
+Database schema:
 {self.DB_SCHEMA}
+
+SQLite Date Functions Reference:
+{self.SQLITE_DATE_EXAMPLES}
+
+Key SQLite Functions:
+- strftime(format, timestring): Format datetime (e.g., '%Y-%m-%d', '%W' for week)
+- datetime('now'): Current datetime
+- date('now'): Current date
+- date(timestamp, 'start of week'): Start of week
+- COUNT(*): Count rows
+- SUM(), AVG(), MIN(), MAX(): Aggregation functions
+
+RULES:
+1. Use ONLY SQLite functions - no MySQL functions like YEARWEEK(), CURDATE(), etc.
+2. Use strftime() for date comparisons and formatting
+3. Use 'now' for current timestamp, not CURDATE() or NOW()
+4. For week filtering: use strftime('%W', date) = strftime('%W', 'now') AND strftime('%Y', date) = strftime('%Y', 'now')
+5. For date filtering: use date(timestamp) for comparisons
 
 Return ONLY the SQL query, nothing else. Do not include markdown formatting."""
 
@@ -184,6 +265,10 @@ Return ONLY the SQL query, nothing else. Do not include markdown formatting."""
                 if sql.endswith("```"):
                     sql = sql[:-3]
                 sql = sql.strip()
+
+                # Convert MySQL functions to SQLite equivalents (safety measure)
+                sql = self._convert_mysql_to_sqlite(sql)
+                self.logger.debug(f"Converted SQL (if needed): {sql[:100]}...")
 
                 # Validate SQL
                 is_valid, error = self._validate_sql(sql)
