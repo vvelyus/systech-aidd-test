@@ -20,9 +20,9 @@ def upgrade() -> None:
     """Create indexes for better query performance."""
     # Create indexes on chat_messages table
     op.create_index(
-        'idx_chat_messages_session_id',
+        'idx_chat_messages_user_session_id',
         'chat_messages',
-        ['session_id'],
+        ['user_session_id'],
         if_not_exists=True
     )
 
@@ -36,7 +36,7 @@ def upgrade() -> None:
     op.create_index(
         'idx_chat_messages_session_created',
         'chat_messages',
-        ['session_id', 'created_at'],
+        ['user_session_id', 'created_at'],
         if_not_exists=True
     )
 
@@ -62,4 +62,4 @@ def downgrade() -> None:
     op.drop_index('idx_chat_sessions_user_id', if_exists=True)
     op.drop_index('idx_chat_messages_session_created', if_exists=True)
     op.drop_index('idx_chat_messages_created_at', if_exists=True)
-    op.drop_index('idx_chat_messages_session_id', if_exists=True)
+    op.drop_index('idx_chat_messages_user_session_id', if_exists=True)
