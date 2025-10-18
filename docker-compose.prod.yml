@@ -1,0 +1,106 @@
+# Docker Compose конфигурация для Production развертывания
+# Sprint D2: Manual Deploy
+#
+# Использование:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Особенности production конфигурации:
+#   - Использование готовых образов из GHCR
+#   - Порты: 8001 (API), 3001 (Frontend)
+#   - Автоматический перезапуск контейнеров
+#   - Оптимизированное логирование
+#   - Production URL для API
+
+services:
+  # Telegram Bot - обработка сообщений
+  bot:
+    image: ghcr.io/vvelyus/systech-aidd-test/bot:latest
+    container_name: systech-aidd-bot-prod
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      # Общая база данных SQLite
+      - ./data:/app/data
+      # Логи приложения
+      - ./logs:/app/logs
+      # Системный промпт (read-only)
+      - ./prompts:/app/prompts:ro
+    networks:
+      - systech-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/app/data/messages.db') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Server - статистика и аналитика
+  api:
+    image: ghcr.io/vvelyus/systech-aidd-test/api:latest
+    container_name: systech-aidd-api-prod
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    volumes:
+      # Общая база данных SQLite
+      - ./data:/app/data
+      # Логи приложения
+      - ./logs:/app/logs
+    networks:
+      - systech-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend - веб-интерфейс
+  frontend:
+    image: ghcr.io/vvelyus/systech-aidd-test/frontend:latest
+    container_name: systech-aidd-frontend-prod
+    restart: always
+    environment:
+      # Production URL для API (публичный доступ)
+      - NEXT_PUBLIC_API_URL=http://89.223.67.136:8001
+    ports:
+      - "3001:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - systech-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Сеть для взаимодействия сервисов
+networks:
+  systech-network:
+    driver: bridge
+
+# Именованные volumes для упрощения backup (опционально)
+# volumes:
+#   data:
+#   logs:
+

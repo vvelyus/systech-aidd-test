@@ -17,7 +17,7 @@ MVP подход к внедрению DevOps процессов в проект
 |-----|----------|--------|------|
 | D0 | Basic Docker Setup | ✅ Completed | [план](plans/d0-basic-docker-setup.md) |
 | D1 | Build & Publish | ✅ Completed | [план](plans/d1-build-publish.md) |
-| D2 | Развертывание на сервер | 📋 Planned | - |
+| D2 | Развертывание на сервер | 🎯 In Progress | [план](plans/d2-manual-deploy.md) |
 | D3 | Auto Deploy | 📋 Planned | - |
 
 ### Легенда статусов
