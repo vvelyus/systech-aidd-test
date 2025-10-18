@@ -103,17 +103,21 @@ MVP подход к внедрению DevOps процессов в проект
 ### Реализовано
 
 - ✅ GitHub Actions workflow с matrix strategy для параллельной сборки
-- ✅ Автоматический trigger при push в main
+- ✅ Автоматический trigger при push в main + pull_request
 - ✅ Manual workflow_dispatch для ручного запуска
 - ✅ Публикация в GHCR с тегами latest и SHA
+- ✅ PR workflow: build-only режим (без публикации)
 - ✅ Кэширование Docker layers через GitHub Actions Cache
 - ✅ docker-compose.registry.yml для использования готовых образов
 - ✅ Полная документация по GitHub Actions (500+ строк)
 - ✅ Badge статуса сборки в README.md
 - ✅ Обновлены все инструкции (README, DOCKER_QUICK_START)
+- ✅ Протестирован полный PR workflow (build → merge → publish)
 
-**Время выполнения:** ~3.5 часа
-**Результат:** Push в main → образы автоматически в GHCR за 5-10 минут
+**Время выполнения:** ~4 часа
+**Результат:** 
+- Push в main → образы автоматически в GHCR за ~40 секунд (с кешем)
+- Pull Request → проверка сборки за ~20-30 секунд (без публикации)
 
 ### Состав работ
 

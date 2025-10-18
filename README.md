@@ -1,6 +1,6 @@
 # systech-aidd-test
 
-![Build Status](https://github.com/username/systech-aidd-test/workflows/Build%20and%20Publish%20Docker%20Images/badge.svg)
+![Build Status](https://github.com/vvelyus/systech-aidd-test/workflows/Build%20and%20Publish%20Docker%20Images/badge.svg)
 
 AI-driven Telegram бот для тестирования интеграции с LLM через OpenRouter API.
 
@@ -13,25 +13,30 @@ AI-driven Telegram бот для тестирования интеграции �
 Все сервисы доступны как готовые Docker образы в GitHub Container Registry:
 
 **Доступные образы:**
-- 🤖 **Bot**: `ghcr.io/username/systech-aidd-test/bot:latest`
-- 🚀 **API**: `ghcr.io/username/systech-aidd-test/api:latest`
-- 🎨 **Frontend**: `ghcr.io/username/systech-aidd-test/frontend:latest`
+- 🤖 **Bot**: `ghcr.io/vvelyus/systech-aidd-test/bot:latest`
+- 🚀 **API**: `ghcr.io/vvelyus/systech-aidd-test/api:latest`
+- 🎨 **Frontend**: `ghcr.io/vvelyus/systech-aidd-test/frontend:latest`
 
 **Теги:**
 - `latest` - последняя версия из main ветки
-- `<commit-sha>` - конкретный коммит (например, `abc1234`)
+- `<commit-sha>` - конкретный коммит (например, `4c8cb14`)
 
 **Pull образы:**
 ```bash
-docker pull ghcr.io/username/systech-aidd-test/bot:latest
-docker pull ghcr.io/username/systech-aidd-test/api:latest
-docker pull ghcr.io/username/systech-aidd-test/frontend:latest
+docker pull ghcr.io/vvelyus/systech-aidd-test/bot:latest
+docker pull ghcr.io/vvelyus/systech-aidd-test/api:latest
+docker pull ghcr.io/vvelyus/systech-aidd-test/frontend:latest
 ```
 
 **Запуск из готовых образов:**
 ```bash
 docker-compose -f docker-compose.registry.yml up -d
 ```
+
+**CI/CD:**
+- ✅ Образы собираются автоматически при push в main
+- ✅ Pull Request проверяет сборку (без публикации)
+- ✅ Кеширование слоев для быстрой пересборки (~40 секунд)
 
 ---
 
