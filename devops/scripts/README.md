@@ -164,6 +164,5 @@ ssh -i /path/to/key.pem systech@89.223.67.136 \
 
 ---
 
-**Sprint D2** - Manual Deploy  
+**Sprint D2** - Manual Deploy
 **Дата создания:** 18 октября 2025
-

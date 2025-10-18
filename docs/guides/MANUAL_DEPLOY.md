@@ -311,7 +311,7 @@ docker-compose -f docker-compose.prod.yml ps
 # Все сервисы должны быть в статусе "Up" или "Up (healthy)"
 # NAME                         STATE    PORTS
 # systech-aidd-api-prod        Up       0.0.0.0:8001->8000/tcp
-# systech-aidd-bot-prod        Up       
+# systech-aidd-bot-prod        Up
 # systech-aidd-frontend-prod   Up       0.0.0.0:3001->3000/tcp
 
 # Альтернативная проверка
@@ -776,4 +776,3 @@ dcl api  # Быстрый просмотр логов API
 **Документ обновлен:** 18 октября 2025
 **Версия:** 1.0
 **Sprint:** D2 - Manual Deploy
-

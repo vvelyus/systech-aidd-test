@@ -94,11 +94,11 @@ if [[ "$DOCKER_VERSION" == *"not installed"* ]]; then
     exit 1
 else
     print_success "Docker установлен: $DOCKER_VERSION"
-    
+
     # Проверка минимальной версии (20.10)
     VERSION_NUM=$(echo "$DOCKER_VERSION" | grep -oP '\d+\.\d+' | head -1)
     REQUIRED_VERSION="20.10"
-    
+
     if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$VERSION_NUM" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
         print_success "Версия Docker подходит (>= $REQUIRED_VERSION)"
     else
@@ -128,7 +128,7 @@ if [[ "$COMPOSE_VERSION" == *"not installed"* ]]; then
     exit 1
 else
     print_success "Docker Compose установлен: $COMPOSE_VERSION"
-    
+
     # Проверка минимальной версии (2.0)
     if [[ "$COMPOSE_VERSION" == *"v2."* ]] || [[ "$COMPOSE_VERSION" == *"version 2."* ]]; then
         print_success "Версия Docker Compose подходит (>= 2.0)"
@@ -145,7 +145,7 @@ print_header "4. Порты"
 check_port() {
     local port=$1
     local service=$2
-    
+
     if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "netstat -tuln 2>/dev/null | grep -q :$port" || \
        ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "ss -tuln 2>/dev/null | grep -q :$port"; then
         print_warning "Порт $port уже занят (конфликт с $service)"
@@ -171,16 +171,16 @@ print_header "5. Директории"
 
 if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "[ -d $SERVER_DIR ]"; then
     print_warning "Рабочая директория уже существует: $SERVER_DIR"
-    
+
     # Проверка содержимого
     if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "[ -f $SERVER_DIR/docker-compose.prod.yml ]"; then
         print_warning "  - docker-compose.prod.yml уже существует"
     fi
-    
+
     if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "[ -f $SERVER_DIR/.env ]"; then
         print_warning "  - .env уже существует"
     fi
-    
+
     if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "[ -d $SERVER_DIR/data ]"; then
         DB_SIZE=$(ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "du -h $SERVER_DIR/data/messages.db 2>/dev/null | cut -f1" || echo "нет")
         print_warning "  - База данных уже существует (размер: $DB_SIZE)"
@@ -248,10 +248,10 @@ print_header "8. Firewall"
 
 if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "command -v ufw >/dev/null 2>&1"; then
     UFW_STATUS=$(ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "sudo ufw status 2>/dev/null | head -1" || echo "inactive")
-    
+
     if [[ "$UFW_STATUS" == *"active"* ]]; then
         print_info "UFW активен"
-        
+
         # Проверка правил для портов
         if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "sudo ufw status | grep -q 8001"; then
             print_success "  Порт 8001 открыт в UFW"
@@ -259,7 +259,7 @@ if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "command -v ufw >/dev/null 2>&1";
             print_warning "  Порт 8001 не открыт в UFW"
             print_info "    Откройте порт: sudo ufw allow 8001/tcp"
         fi
-        
+
         if ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "sudo ufw status | grep -q 3001"; then
             print_success "  Порт 3001 открыт в UFW"
         else
@@ -290,4 +290,3 @@ print_info "  docs/guides/MANUAL_DEPLOY.md"
 echo ""
 
 exit 0
-
