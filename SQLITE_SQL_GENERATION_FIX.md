@@ -12,7 +12,7 @@ WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1);
 
 **Error:**
 ```
-The query failed because CURDATE() and YEARWEEK() are MySQL‑specific functions 
+The query failed because CURDATE() and YEARWEEK() are MySQL‑specific functions
 – SQLite does not provide them.
 ```
 
@@ -88,7 +88,7 @@ WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1);
 ```sql
 SELECT COUNT(*) AS message_count
 FROM messages
-WHERE (strftime('%W', created_at) || strftime('%Y', created_at)) = 
+WHERE (strftime('%W', created_at) || strftime('%Y', created_at)) =
       (strftime('%W', date('now')) || strftime('%Y', date('now')));
 ```
 
@@ -173,6 +173,6 @@ No configuration changes needed. The fix is automatic and backward-compatible:
 
 ---
 
-**Status:** ✅ Complete and ready for testing  
-**Created:** October 18, 2025 (Day 6)  
+**Status:** ✅ Complete and ready for testing
+**Created:** October 18, 2025 (Day 6)
 **Database:** SQLite

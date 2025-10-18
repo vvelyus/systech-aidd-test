@@ -155,23 +155,23 @@ class Text2SqlConverter:
     def _convert_mysql_to_sqlite(self, sql: str) -> str:
         """
         Convert MySQL specific functions to SQLite equivalents.
-        
+
         This is a safety measure in case the LLM generates MySQL SQL despite instructions.
-        
+
         Args:
             sql: SQL query that may contain MySQL functions
-            
+
         Returns:
             SQL query with MySQL functions converted to SQLite equivalents
         """
         import re
-        
+
         # Replace CURDATE() with date('now')
         sql = re.sub(r'\bCURDATE\(\)', "date('now')", sql, flags=re.IGNORECASE)
-        
+
         # Replace NOW() with datetime('now')
         sql = re.sub(r'\bNOW\(\)', "datetime('now')", sql, flags=re.IGNORECASE)
-        
+
         # Replace YEARWEEK(..., 1) with strftime('%W', ...) AND strftime('%Y', ...)
         # This is a simplified conversion - may need context-specific fixes
         sql = re.sub(
@@ -180,19 +180,19 @@ class Text2SqlConverter:
             sql,
             flags=re.IGNORECASE
         )
-        
+
         # Replace YEAR(...) with strftime('%Y', ...)
         sql = re.sub(r'\bYEAR\s*\(\s*([^)]+)\s*\)', r"strftime('%Y', \1)", sql, flags=re.IGNORECASE)
-        
+
         # Replace MONTH(...) with strftime('%m', ...)
         sql = re.sub(r'\bMONTH\s*\(\s*([^)]+)\s*\)', r"strftime('%m', \1)", sql, flags=re.IGNORECASE)
-        
+
         # Replace DAY(...) with strftime('%d', ...)
         sql = re.sub(r'\bDAY\s*\(\s*([^)]+)\s*\)', r"strftime('%d', \1)", sql, flags=re.IGNORECASE)
-        
+
         # Replace WEEK(...) with strftime('%W', ...)
         sql = re.sub(r'\bWEEK\s*\(\s*([^,)]+)(?:\s*,\s*\d+)?\s*\)', r"strftime('%W', \1)", sql, flags=re.IGNORECASE)
-        
+
         return sql
 
     async def convert(
