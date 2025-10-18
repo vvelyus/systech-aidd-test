@@ -1,27 +1,42 @@
-# Minimal .dockerignore for Next.js frontend
-# Only ignore what's absolutely not needed for Docker build
+# Dependencies
+node_modules
+.pnpm-store
 
-# Node.js - don't copy node_modules (will be installed in Docker)
-node_modules/
+# Next.js
+.next
+out
 
-# Next.js build artifacts (will be generated during build)
-.next/
-out/
+# Testing
+coverage
 
-# Git
-.git/
-
-# IDE
-.vscode/
-.idea/
-.cursor/
-
-# Local env files (use Docker env vars instead)
-.env.local
-.env*.local
-
-# Logs
+# Misc
+.DS_Store
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-*.log
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local env files
+.env*.local
+.env.development
+.env.test
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore

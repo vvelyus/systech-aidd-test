@@ -1,5 +1,5 @@
-# Dockerfile для Frontend
-# Sprint D2: Production-Ready Build
+# Dockerfile для Frontend (Next.js)
+# Оптимизированный multi-stage build
 
 FROM node:20-slim AS base
 
@@ -13,7 +13,7 @@ FROM base AS deps
 
 WORKDIR /app
 
-# Copy package files (context is frontend/web)
+# Copy package files
 COPY package.json pnpm-lock.yaml* ./
 
 # Install dependencies
@@ -29,11 +29,10 @@ WORKDIR /app
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy all source files (context is frontend/web)
-COPY . ./
+# Copy all source files
+COPY . .
 
 # Build Next.js application
-# This creates the .next folder with optimized production build
 RUN pnpm build
 
 # ===========================================
