@@ -51,7 +51,7 @@ jobs:
           if [ "$SERVICE" = "frontend" ]; then
             # Frontend uses its own directory as context to avoid root .dockerignore
             echo "context=./frontend/web" >> $GITHUB_OUTPUT
-            echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
+            echo "dockerfile=./frontend/web/Dockerfile" >> $GITHUB_OUTPUT
           else
             # Bot and API use root context
             echo "context=." >> $GITHUB_OUTPUT
