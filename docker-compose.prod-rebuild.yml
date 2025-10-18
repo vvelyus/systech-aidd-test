@@ -1,0 +1,71 @@
+# Docker Compose для пересборки Frontend на сервере
+# Временное решение для исправления ошибки Module not found
+
+services:
+  # Bot и API используют готовые образы из GHCR
+  bot:
+    image: ghcr.io/vvelyus/systech-aidd-test/bot:latest
+    container_name: systech-aidd-bot-prod
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./prompts:/app/prompts:ro
+    networks:
+      - systech-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/app/data/messages.db') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    image: ghcr.io/vvelyus/systech-aidd-test/api:latest
+    container_name: systech-aidd-api-prod
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - systech-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Frontend - ЛОКАЛЬНАЯ СБОРКА (временно)
+  frontend:
+    build:
+      context: .
+      dockerfile: devops/Dockerfile.frontend
+    container_name: systech-aidd-frontend-prod
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://89.223.67.136:8001
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api
+    networks:
+      - systech-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  systech-network:
+    driver: bridge
