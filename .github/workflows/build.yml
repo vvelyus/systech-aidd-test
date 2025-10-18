@@ -3,6 +3,8 @@ name: Build and Publish Docker Images
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -59,7 +61,8 @@ jobs:
         with:
           context: ${{ steps.build_config.outputs.context }}
           file: ${{ steps.build_config.outputs.dockerfile }}
-          push: true
+          # Push only for push to main, not for PRs (build-only for PRs)
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/${{ steps.meta.outputs.repo_lower }}/${{ matrix.service }}:latest
             ghcr.io/${{ steps.meta.outputs.repo_lower }}/${{ matrix.service }}:${{ steps.meta.outputs.short_sha }}
