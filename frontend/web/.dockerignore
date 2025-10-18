@@ -1,40 +1,27 @@
-# Node.js
-node_modules/
-.next/
-.next.config.js.swp
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-# pnpm-lock.yaml - НУЖЕН для Docker сборки с --frozen-lockfile!
+# Minimal .dockerignore for Next.js frontend
+# Only ignore what's absolutely not needed for Docker build
 
-# Git и env
+# Node.js - don't copy node_modules (will be installed in Docker)
+node_modules/
+
+# Next.js build artifacts (will be generated during build)
+.next/
+out/
+
+# Git
 .git/
-.gitignore
-.env
-.env.local
-.env*.local
 
 # IDE
 .vscode/
 .idea/
 .cursor/
 
-# Тесты и документация
-*.test.ts
-*.test.tsx
-*.spec.ts
-*.spec.tsx
-**/__tests__/
-coverage/
-.eslintcache
+# Local env files (use Docker env vars instead)
+.env.local
+.env*.local
 
-# Build artifacts
-dist/
-build/
-out/
-
-# Misc
-*.md
-README.md
-.DS_Store
-*.pem
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
