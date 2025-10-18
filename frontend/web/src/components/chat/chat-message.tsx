@@ -3,8 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import ReactMarkdown from "react-markdown";
-import { MessageRole, ChatMessage as ChatMessageType } from "@/types/chat";
-import { Card } from "@/components/ui/card";
+import { ChatMessage as ChatMessageType } from "@/types/chat";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Check, AlertCircle, Database } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -20,7 +19,7 @@ export function ChatMessage({ message, isLoading = false }: ChatMessageProps) {
 
   // Check if message contains SQL query (for admin mode)
   const sqlMatch = useMemo(() => {
-    return message.content.match(/SQL Query:\s*(.+?)(?:\n\n|$)/s);
+    return message.content.match(/SQL Query:\s*([\s\S]+?)(?:\n\n|$)/);
   }, [message.content]);
 
   const sqlQuery = sqlMatch?.[1]?.trim() || null;
@@ -70,7 +69,7 @@ export function ChatMessage({ message, isLoading = false }: ChatMessageProps) {
 
     if (sqlQuery) {
       // If there's a SQL query, show it and the rest separately
-      const cleanContent = content.replace(/SQL Query:\s*.+?(?:\n\n|$)/s, "").trim();
+      const cleanContent = content.replace(/SQL Query:\s*[\s\S]+?(?:\n\n|$)/, "").trim();
       return (
         <div className="space-y-3">
           {sqlQuery && (
@@ -94,16 +93,6 @@ export function ChatMessage({ message, isLoading = false }: ChatMessageProps) {
           {cleanContent && (
             <ReactMarkdown
               className="prose prose-sm max-w-none dark:prose-invert"
-              components={{
-                code: ({node, inline, className, children, ...props}) => (
-                  <code
-                    className={inline ? "bg-gray-200 px-1 rounded" : "bg-gray-100 p-2 rounded block overflow-x-auto"}
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                ),
-              }}
             >
               {cleanContent}
             </ReactMarkdown>
@@ -115,16 +104,6 @@ export function ChatMessage({ message, isLoading = false }: ChatMessageProps) {
     return (
       <ReactMarkdown
         className="prose prose-sm max-w-none dark:prose-invert"
-        components={{
-          code: ({node, inline, className, children, ...props}) => (
-            <code
-              className={inline ? "bg-gray-200 px-1 rounded" : "bg-gray-100 p-2 rounded block overflow-x-auto"}
-              {...props}
-            >
-              {children}
-            </code>
-          ),
-        }}
       >
         {content}
       </ReactMarkdown>

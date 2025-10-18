@@ -112,10 +112,11 @@ export async function* chatMessage(
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
-      buffer = lines[lines.length - 1];
+      buffer = lines[lines.length - 1] || "";
 
       for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i];
+        if (!line) continue;
 
         // Парсим SSE формат: data: {...}
         if (line.startsWith("data: ")) {

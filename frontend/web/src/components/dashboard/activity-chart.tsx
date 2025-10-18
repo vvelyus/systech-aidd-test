@@ -26,9 +26,18 @@ interface ActivityChartProps {
 }
 
 // Custom dot component to display values on the chart (only for weekly data)
-const CustomDot = (props: any) => {
+interface CustomDotProps {
+  cx?: number;
+  cy?: number;
+  payload?: TimelineData;
+  dataKey?: keyof TimelineData;
+}
+
+const CustomDot = (props: CustomDotProps) => {
   const { cx, cy, payload, dataKey } = props
-  const value = payload[dataKey]
+  const value = dataKey && payload ? payload[dataKey] : 0
+
+  if (!cx || !cy) return null;
 
   return (
     <g>

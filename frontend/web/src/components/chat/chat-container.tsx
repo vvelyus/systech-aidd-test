@@ -26,7 +26,15 @@ export function ChatContainer({
     error,
     sendMessage,
     switchMode,
-  } = useChat(userId, initialMode);
+  } = useChat(userId);
+
+  // Set initial mode if different from current
+  useEffect(() => {
+    if (initialMode && initialMode !== currentMode) {
+      switchMode(initialMode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMode]); // Only run once on mount
 
   const handleSendMessage = async (message: string) => {
     await sendMessage(message);

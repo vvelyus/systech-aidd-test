@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { MessageCircle, X } from "lucide-react";
-import { useState } from "react";
 
 interface FloatingChatButtonProps {
   onToggle: (open: boolean) => void;

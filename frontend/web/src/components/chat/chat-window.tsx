@@ -7,7 +7,6 @@ import { ChatInput } from "./chat-input";
 import { ModeToggle } from "./mode-toggle";
 import { SuggestedQuestions } from "./suggested-questions";
 import { LoadingSkeleton } from "./loading-skeleton";
-import { Loader2 } from "lucide-react";
 
 interface ChatWindowProps {
   messages: ChatMessageType[];
