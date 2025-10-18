@@ -5,14 +5,14 @@
 #   docker-compose -f docker-compose.registry.yml up -d
 #
 # Примечание:
-#   - Образы должны быть публичными (public access в GitHub Packages)
-#   - Для приватных образов требуется: docker login ghcr.io
-#   - Замените 'username' на ваш GitHub username
+#   - Образы публичные (public access в GitHub Packages) ✅
+#   - Pull работает без авторизации
+#   - Username: vvelyus
 
 services:
   # Telegram Bot - обработка сообщений
   bot:
-    image: ghcr.io/username/systech-aidd-test/bot:latest
+    image: ghcr.io/vvelyus/systech-aidd-test/bot:latest
     container_name: systech-aidd-bot
     restart: unless-stopped
     env_file:
@@ -34,7 +34,7 @@ services:
 
   # API Server - статистика и аналитика
   api:
-    image: ghcr.io/username/systech-aidd-test/api:latest
+    image: ghcr.io/vvelyus/systech-aidd-test/api:latest
     container_name: systech-aidd-api
     restart: unless-stopped
     env_file:
@@ -56,7 +56,7 @@ services:
 
   # Frontend - веб-интерфейс
   frontend:
-    image: ghcr.io/username/systech-aidd-test/frontend:latest
+    image: ghcr.io/vvelyus/systech-aidd-test/frontend:latest
     container_name: systech-aidd-frontend
     restart: unless-stopped
     environment:
