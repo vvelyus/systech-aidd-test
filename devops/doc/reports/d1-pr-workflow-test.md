@@ -1,7 +1,7 @@
 # Sprint D1: Pull Request Workflow Test Report
 
-**Дата:** 18 октября 2025  
-**Цель:** Проверить работу CI/CD pipeline для Pull Request workflow  
+**Дата:** 18 октября 2025
+**Цель:** Проверить работу CI/CD pipeline для Pull Request workflow
 **Статус:** ✅ **Успешно завершено**
 
 ---
@@ -178,7 +178,6 @@ push: ${{ github.event_name != 'pull_request' }}
 
 ---
 
-**Подготовил:** AI Assistant  
-**Проверил:** vvelyus  
+**Подготовил:** AI Assistant
+**Проверил:** vvelyus
 **Дата:** 18 октября 2025
-
