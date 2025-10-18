@@ -1,7 +1,7 @@
 # ✅ Sprint D1: Build & Publish - COMPLETE
 
-**Дата завершения:** 18 октября 2025  
-**Статус:** Successfully Completed  
+**Дата завершения:** 18 октября 2025
+**Статус:** Successfully Completed
 **Длительность:** ~4 часа
 
 ---
@@ -156,6 +156,6 @@ docker-compose -f docker-compose.registry.yml up -d
 
 ---
 
-**Date:** 18 октября 2025  
-**Team:** vvelyus + AI Assistant  
+**Date:** 18 октября 2025
+**Team:** vvelyus + AI Assistant
 **Status:** ✅ Complete

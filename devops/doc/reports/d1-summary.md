@@ -1,8 +1,8 @@
 # Sprint D1: Build & Publish - Final Report
 
-**Дата начала:** 18 октября 2025  
-**Дата завершения:** 18 октября 2025  
-**Длительность:** ~4 часа  
+**Дата начала:** 18 октября 2025
+**Дата завершения:** 18 октября 2025
+**Длительность:** ~4 часа
 **Статус:** ✅ **Successfully Completed**
 
 ---
@@ -72,7 +72,7 @@ strategy:
 
 ### 2. Docker Image Publishing
 
-**Registry:** GitHub Container Registry (ghcr.io)  
+**Registry:** GitHub Container Registry (ghcr.io)
 **Access:** Public (pull без авторизации)
 
 **Образы:**
@@ -177,7 +177,7 @@ docker-compose -f docker-compose.registry.yml up -d
 
 ### Pull Request Workflow Test
 
-**Дата:** 18 октября 2025  
+**Дата:** 18 октября 2025
 **PR:** #1 `test-pr-workflow`
 
 **Проверено:**
@@ -277,7 +277,7 @@ cache-to: type=gha,mode=max,scope=${{ matrix.service }}
   run: |
     SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
     echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-    
+
     REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
     echo "repo_lower=${REPO_LOWER}" >> $GITHUB_OUTPUT
 ```
@@ -450,8 +450,8 @@ Sprint D1 успешно завершен с полной реализацией
 
 ---
 
-**Prepared by:** AI Assistant  
-**Reviewed by:** vvelyus  
-**Date:** 18 октября 2025  
-**Sprint:** D1 - Build & Publish  
+**Prepared by:** AI Assistant
+**Reviewed by:** vvelyus
+**Date:** 18 октября 2025
+**Sprint:** D1 - Build & Publish
 **Status:** ✅ Completed
