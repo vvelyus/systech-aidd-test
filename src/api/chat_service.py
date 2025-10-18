@@ -369,10 +369,10 @@ class ChatService:
         temperature = self.temperature_config[ChatMode.ADMIN]
 
         try:
-            # Этап 1: Text-to-SQL конвертация с timeout
+            # Этап 1: Text-to-SQL конвертация с timeout (увеличен для сложных запросов)
             text2sql_response = await asyncio.wait_for(
                 self.text2sql.convert(message, max_retries=3),
-                timeout=self.text2sql_timeout
+                timeout=self.text2sql_timeout  # Использует настраиваемый таймаут
             )
 
             if not text2sql_response.sql:
@@ -391,9 +391,9 @@ class ChatService:
                 self.text2sql.execute_and_format(
                     text2sql_response.sql,
                     max_rows=1000,
-                    timeout=10.0
+                    timeout=30.0  # Увеличен для сложных запросов к БД
                 ),
-                timeout=20.0
+                timeout=40.0  # Увеличен общий таймаут выполнения
             )
 
             # Этап 3: Отправить результаты в LLM для интерпретации
@@ -411,7 +411,7 @@ Provide a clear, factual answer based on the data."""
             full_response = ""
             llm_response = await asyncio.wait_for(
                 self.llm_client.get_response(llm_prompt),
-                timeout=self.request_timeout
+                timeout=self.request_timeout  # Использует настраиваемый таймаут
             )
 
             # Оптимизировать chunks для streaming

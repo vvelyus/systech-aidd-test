@@ -174,7 +174,7 @@ Return ONLY the SQL query, nothing else. Do not include markdown formatting."""
                     self.llm_client.get_response(
                         f"{system_prompt}\n\nQuestion: {question}"
                     ),
-                    timeout=5.0  # 5 second timeout per LLM call
+                    timeout=15.0  # Increased from 5s to 15s for SQL generation
                 )
 
                 # Extract SQL from response (remove markdown if present)

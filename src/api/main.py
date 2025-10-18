@@ -77,8 +77,8 @@ async def startup_event() -> None:
             llm_client=_llm_client,
             db_manager=_db_manager,
             logger=_logger,
-            request_timeout=60.0,  # Increased from 30s
-            text2sql_timeout=15.0,  # Increased from 5s
+            request_timeout=90.0,  # Increased from 60s to 90s for complex queries
+            text2sql_timeout=30.0,  # Increased from 5s to 30s for SQL generation
         )
 
         # Register chat service
